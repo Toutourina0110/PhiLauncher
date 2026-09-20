@@ -118,16 +118,23 @@ MSAStep::MSAStep(AccountData* data, bool silent) : AuthStep(data), m_silent(sile
 
     {
         auto replyHandler = new LoggingOAuthHttpServerReplyHandler(this);
-        replyHandler->setCallbackText(QString(R"XXX(
-    <noscript>
-      <meta http-equiv="Refresh" content="0; URL=%1" />
-    </noscript>
-    Login Successful, redirecting...
-    <script>
-      window.location.replace("%1");
-    </script>
-    )XXX")
-                                          .arg(BuildConfig.LOGIN_CALLBACK_URL));
+        // self-contained page served by the local reply handler; no external redirect
+        replyHandler->setCallbackText(QString(R"XXX(<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>%1</title>
+<style>
+  html,body{height:100%;margin:0;background:#141416;color:#e8e6ee;font:16px/1.5 system-ui,Segoe UI,sans-serif}
+  main{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}
+  .phi{font:600 96px/1 Georgia,serif;background:linear-gradient(135deg,#8b3dff,#2a1dff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  h1{margin:16px 0 8px;font-size:22px;font-weight:600}
+  p{margin:0;color:#a8a4b8}
+</style></head>
+<body><main>
+  <div class="phi">&Phi;</div>
+  <h1>%2</h1>
+  <p>%3</p>
+</main></body></html>)XXX")
+                                          .arg(BuildConfig.LAUNCHER_DISPLAYNAME, tr("Login successful"),
+                                               tr("You can close this tab and go back to %1.").arg(BuildConfig.LAUNCHER_DISPLAYNAME)));
         m_oauth2.setReplyHandler(replyHandler);
     } else {
         m_oauth2.setReplyHandler(new CustomOAuthOobReplyHandler(this));
