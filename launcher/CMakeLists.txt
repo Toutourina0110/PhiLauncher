@@ -284,6 +284,8 @@ set(MINECRAFT_SOURCES
     minecraft/Component.cpp
     minecraft/Component.h
     minecraft/PackProfile.cpp
+    minecraft/PhiHud.h
+    minecraft/PhiHud.cpp
     minecraft/PackProfile.h
     minecraft/ComponentUpdateTask.cpp
     minecraft/ComponentUpdateTask.h
@@ -906,6 +908,8 @@ SET(LAUNCHER_SOURCES
     ui/pages/instance/ModFolderPage.h
     ui/pages/instance/NotesPage.cpp
     ui/pages/instance/NotesPage.h
+    ui/pages/instance/PhiHudPage.cpp
+    ui/pages/instance/PhiHudPage.h
     ui/pages/instance/LogPage.cpp
     ui/pages/instance/LogPage.h
     ui/pages/instance/InstanceSettingsPage.h
@@ -1346,6 +1350,19 @@ endif()
 if(DEFINED Launcher_APP_BINARY_DEFS)
     target_compile_definitions(${Launcher_Name} PRIVATE ${Launcher_APP_BINARY_DEFS})
     target_compile_definitions(Launcher_logic PRIVATE ${Launcher_APP_BINARY_DEFS})
+endif()
+
+# Phi HUD mod jars: built separately (mods/phihud-*), shipped next to the binary in phihud/
+file(GLOB PHIHUD_JARS "${CMAKE_SOURCE_DIR}/mods/phihud-fabric/build/libs/phihud-fabric-*.jar"
+                      "${CMAKE_SOURCE_DIR}/mods/phihud-forge-1.8.9/build/libs/phihud-forge-*.jar")
+if(PHIHUD_JARS)
+    add_custom_command(TARGET ${Launcher_Name} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${Launcher_Name}>/phihud"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PHIHUD_JARS} "$<TARGET_FILE_DIR:${Launcher_Name}>/phihud"
+        COMMENT "Copying Phi HUD jars")
+    install(FILES ${PHIHUD_JARS} DESTINATION "${BINARY_DEST_DIR}/phihud" COMPONENT Runtime)
+else()
+    message(STATUS "No Phi HUD jars found under mods/; build them with gradle to ship the in-game overlay")
 endif()
 
 install(TARGETS ${Launcher_Name}

@@ -78,6 +78,8 @@ class NewInstanceDialog : public QDialog, public BasePageProvider {
     QString iconKey() const;
     QString instDir() const;
     void refreshInstDirBox();
+    /// Step 3 "Install Phi HUD" box: checked and shown (Custom source with a supported loader + version).
+    bool installPhiHud() const;
 
    public slots:
     void accept() override;
@@ -90,6 +92,7 @@ class NewInstanceDialog : public QDialog, public BasePageProvider {
 
    private:
     void importIconNow();
+    bool phiHudSupported() const;
     bool eventFilter(QObject* watched, QEvent* event) override;
 
    private:

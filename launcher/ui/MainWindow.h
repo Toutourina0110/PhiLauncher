@@ -235,6 +235,8 @@ class MainWindow : public QMainWindow {
 
     void runModalTask(Task* task);
     void instanceFromInstanceTask(InstanceTask* task);
+    /// Installs the Phi HUD mod + default config into a freshly created instance (no-op if unsupported).
+    void installPhiHudInto(MinecraftInstance* inst);
 
    private:
     Ui::MainWindow* ui;

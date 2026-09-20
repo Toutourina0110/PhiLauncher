@@ -118,6 +118,7 @@
 #include "ui/widgets/ResumePanel.h"
 
 #include "minecraft/PackProfile.h"
+#include "minecraft/PhiHud.h"
 #include "minecraft/VersionFile.h"
 #include "minecraft/WorldList.h"
 #include "minecraft/mod/ModFolderModel.h"
@@ -974,8 +975,32 @@ void MainWindow::addInstance(const QString& url, const QMap<QString, QString>& e
 
     InstanceTask* creationTask = newInstDlg.extractTask();
     if (creationTask) {
+        // commitStagedInstance() announces the new id via instanceSelectRequest while the modal task runs
+        QString createdId;
+        auto conn = connect(APPLICATION->instances(), &InstanceList::instanceSelectRequest, this,
+                            [&createdId](QString id) { createdId = id; });
         instanceFromInstanceTask(creationTask);
+        disconnect(conn);
+        if (newInstDlg.installPhiHud() && !createdId.isEmpty())
+            installPhiHudInto(APPLICATION->instances()->getInstanceById(createdId));
     }
+}
+
+void MainWindow::installPhiHudInto(MinecraftInstance* inst)
+{
+    if (!inst)
+        return;
+    auto support = PhiHud::supportFor(inst);
+    if (!support || !PhiHud::jarAvailable(*support))
+        return;
+    auto task = PhiHud::installTask(inst);
+    ProgressDialog dlg(this);
+    dlg.setSkipButton(true, tr("Abort"));
+    dlg.execWithTask(task.get());
+    if (task->wasSuccessful())
+        PhiHud::writeConfig(inst, PhiHud::HudConfig());
+    else if (!task->failReason().isEmpty())
+        CustomMessageBox::selectable(this, tr("Error"), task->failReason(), QMessageBox::Critical)->show();
 }
 
 void MainWindow::on_actionAddInstance_triggered()

@@ -1,0 +1,22 @@
+{
+	"schemaVersion": 1,
+	"id": "phihud",
+	"version": "${version}",
+	"name": "Phi HUD",
+	"description": "In-game overlay shipped with Phi Launcher: FPS, TPS, coordinates, direction, ping, memory, clock, armor and inventory widgets configured from config/phihud.json.",
+	"authors": ["Phi Launcher"],
+	"license": "MIT",
+	"environment": "client",
+	"entrypoints": {
+		"client": ["dev.phi.phihud.PhiHud"]
+	},
+	"mixins": [
+		{ "config": "phihud.mixins.json", "environment": "client" }
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "${mc}",
+		"java": ">=${java}",
+		"fabric-api": "*"
+	}
+}

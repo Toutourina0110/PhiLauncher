@@ -1,0 +1,9 @@
+[{
+  "modid": "phihud",
+  "name": "Phi HUD",
+  "description": "In-game overlay shipped with Phi Launcher. Configured via config/phihud.json.",
+  "version": "1.0.0",
+  "mcversion": "1.8.9",
+  "authorList": ["Phi Launcher"],
+  "dependencies": []
+}]

@@ -1,0 +1,9 @@
+{
+	"required": true,
+	"package": "dev.phi.phihud.mixin",
+	"compatibilityLevel": "JAVA_${java}",
+	"client": [
+		"ClientPacketListenerMixin"
+	],
+	"injectors": { "defaultRequire": 1 }
+}

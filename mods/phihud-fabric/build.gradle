@@ -1,0 +1,59 @@
+plugins {
+	// 1.21.11 is obfuscated (needs Mojang mappings + remapping); 26.x ships unobfuscated (no remap).
+	id 'net.fabricmc.fabric-loom-remap' version "${loom_version}" apply false
+	id 'net.fabricmc.fabric-loom' version "${loom_version}" apply false
+}
+
+// mc -> [fabric_api_version, java, remap?, per-version source dir]
+def targets = [
+	'1.21.11': [api: '0.141.6+1.21.11', java: 21, remap: true,  src: 'v1_21_11'],
+	'26.1'   : [api: '0.155.3+26.1.2',  java: 25, remap: false, src: 'v26_1'],
+	'26.1.1' : [api: '0.155.3+26.1.2',  java: 25, remap: false, src: 'v26_1'],
+	'26.1.2' : [api: '0.155.3+26.1.2',  java: 25, remap: false, src: 'v26_1'],
+	'26.2'   : [api: '0.161.0+26.2',    java: 25, remap: false, src: 'v26'],
+	'26.3'   : [api: '0.161.0+26.3',    java: 25, remap: false, src: 'v26'],
+]
+def mc = project.mc as String
+def t = targets[mc] ?: { throw new GradleException("Unknown mc=$mc; use one of ${targets.keySet()}") }()
+println "phihud: mc=$mc fabric-api=${t.api} java=${t.java} remap=${t.remap} src=src/${t.src}"
+
+apply plugin: t.remap ? 'net.fabricmc.fabric-loom-remap' : 'net.fabricmc.fabric-loom'
+
+version = project.mod_version
+group = project.group
+base.archivesName = "phihud-fabric-$mc"
+
+loom {
+	mods { phihud { sourceSet sourceSets.main } }
+}
+
+sourceSets.main.java.srcDir "src/${t.src}/java"
+
+dependencies {
+	minecraft "com.mojang:minecraft:$mc"
+	if (t.remap) mappings loom.officialMojangMappings()
+	def cfg = t.remap ? 'modImplementation' : 'implementation'
+	add cfg, "net.fabricmc:fabric-loader:${project.loader_version}"
+	add cfg, "net.fabricmc.fabric-api:fabric-api:${t.api}"
+}
+
+java {
+	toolchain.languageVersion = JavaLanguageVersion.of(t.java)
+}
+
+processResources {
+	inputs.property 'version', project.version
+	inputs.property 'mc', mc
+	inputs.property 'java', t.java
+	filesMatching('fabric.mod.json') { expand version: project.version, mc: mc, java: t.java }
+	filesMatching('phihud.mixins.json') { expand java: t.java }
+}
+
+jar {
+	from('LICENSE') { rename { "${it}_phihud" } }
+}
+
+// final artifact: build/libs/phihud-fabric-<mc>.jar (remapJar in remap mode, plain jar otherwise)
+afterEvaluate {
+	tasks.named(t.remap ? 'remapJar' : 'jar') { archiveFileName = "phihud-fabric-${mc}.jar" }
+}

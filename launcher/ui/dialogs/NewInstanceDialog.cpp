@@ -60,6 +60,7 @@
 #include <QValidator>
 #include <utility>
 
+#include "minecraft/PhiHud.h"
 #include "ui/pages/modplatform/CustomPage.h"
 #include "ui/pages/modplatform/ImportPage.h"
 #include "ui/pages/modplatform/atlauncher/AtlPage.h"
@@ -428,10 +429,24 @@ void NewInstanceDialog::goToStep(int step)
         default:
             m_container->hide();
             ui->formWidget->show();
+            ui->installHudBox->setVisible(phiHudSupported());
             ui->instNameTextBox->setFocus();
             break;
     }
     updateDialogState();
+}
+
+bool NewInstanceDialog::phiHudSupported() const
+{
+    auto* custom = dynamic_cast<CustomPage*>(m_container->selectedPage());
+    if (!custom || !custom->selectedVersion() || !custom->selectedLoaderVersion())
+        return false;
+    return PhiHud::supportFor(custom->selectedLoader(), custom->selectedVersion()->descriptor()).has_value();
+}
+
+bool NewInstanceDialog::installPhiHud() const
+{
+    return phiHudSupported() && ui->installHudBox->isChecked();
 }
 
 QString NewInstanceDialog::instName() const

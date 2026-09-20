@@ -1,0 +1,331 @@
+// SPDX-License-Identifier: GPL-3.0-only
+/*
+ *  Phi Launcher - Minecraft Launcher
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, version 3.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include "PhiHud.h"
+
+#include <QDebug>
+#include <QDir>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QUrl>
+#include <utility>
+
+#include "Application.h"
+#include "BuildConfig.h"
+#include "FileSystem.h"
+#include "Json.h"
+#include "minecraft/MinecraftInstance.h"
+#include "minecraft/PackProfile.h"
+#include "net/ApiRequest.h"
+#include "net/NetJob.h"
+
+namespace PhiHud {
+
+namespace {
+
+const QString FABRIC = "net.fabricmc.fabric-loader";
+const QString FORGE = "net.minecraftforge";
+// The single source of truth for supported targets (mods/PHIHUD_SPEC.md).
+const QStringList FABRIC_VERSIONS = { "1.21.11", "26.1", "26.1.1", "26.1.2", "26.2", "26.3" };
+const QStringList FORGE_VERSIONS = { "1.8.9" };
+
+QStringList findJars(const QString& dir, const QString& pattern)
+{
+    QStringList out;
+    for (const auto& name : QDir(dir).entryList({ pattern }, QDir::Files))
+        out << FS::PathCombine(dir, name);
+    return out;
+}
+
+/// Copies the jar, then (Fabric only) fetches Fabric API from Modrinth if missing.
+class InstallTask : public Task {
+    Q_OBJECT
+   public:
+    InstallTask(MinecraftInstance* inst, Support support) : m_modsDir(inst->modsRoot()), m_support(std::move(support)) {}
+
+    bool canAbort() const override { return true; }
+    bool abort() override
+    {
+        if (m_net && m_net->canAbort())
+            return m_net->abort();
+        return Task::abort();
+    }
+
+   protected:
+    void executeTask() override
+    {
+        setStatus(tr("Installing Phi HUD"));
+        FS::ensureFolderPathExists(m_modsDir);
+        for (const auto& old : findJars(m_modsDir, "phihud-*.jar"))
+            QFile::remove(old);
+        auto src = FS::PathCombine(jarsDir(), m_support.jarName);
+        if (!QFile::copy(src, FS::PathCombine(m_modsDir, m_support.jarName))) {
+            emitFailed(tr("Could not copy %1 into the mods folder.").arg(src));
+            return;
+        }
+        if (m_support.loader != FABRIC || !findJars(m_modsDir, "fabric-api*.jar").isEmpty()) {
+            emitSucceeded();
+            return;
+        }
+
+        setStatus(tr("Looking up Fabric API"));
+        QUrl url(QString(R"(%1/project/fabric-api/version?game_versions=["%2"]&loaders=["fabric"])")
+                     .arg(BuildConfig.MODRINTH_PROD_URL, m_support.mcVersion));
+        auto [request, response] = Net::ApiRequest::makeByteArray(url);
+        m_net = makeShared<NetJob>("PhiHud::FabricApiLookup", APPLICATION->network());
+        m_net->addNetAction(request);
+        connect(m_net.get(), &Task::failed, this, &InstallTask::emitFailed);
+        connect(m_net.get(), &Task::aborted, this, &InstallTask::emitAborted);
+        connect(m_net.get(), &Task::succeeded, this, [this, response] { downloadFabricApi(*response); });
+        m_net->start();
+    }
+
+   private:
+    void downloadFabricApi(const QByteArray& json)
+    {
+        auto versions = Json::requireArray(json, "Fabric API versions");
+        if (!versions) {
+            emitFailed(versions.error());
+            return;
+        }
+        if (versions->isEmpty()) {
+            emitFailed(tr("No Fabric API release found for Minecraft %1.").arg(m_support.mcVersion));
+            return;
+        }
+        auto files = versions->first().toObject()["files"].toArray();
+        auto file = files.isEmpty() ? QJsonObject() : files.first().toObject();
+        auto fileUrl = file["url"].toString();
+        auto fileName = file["filename"].toString();
+        if (fileUrl.isEmpty() || fileName.isEmpty()) {
+            emitFailed(tr("Modrinth returned no file for Fabric API."));
+            return;
+        }
+
+        setStatus(tr("Downloading %1").arg(fileName));
+        m_net = makeShared<NetJob>("PhiHud::FabricApiDownload", APPLICATION->network());
+        m_net->addNetAction(Net::ApiRequest::makeFile(QUrl(fileUrl), FS::PathCombine(m_modsDir, fileName)));
+        connect(m_net.get(), &Task::failed, this, &InstallTask::emitFailed);
+        connect(m_net.get(), &Task::aborted, this, &InstallTask::emitAborted);
+        connect(m_net.get(), &Task::progress, this, &InstallTask::setProgress);
+        connect(m_net.get(), &Task::succeeded, this, &InstallTask::emitSucceeded);
+        m_net->start();
+    }
+
+    QString m_modsDir;
+    Support m_support;
+    NetJob::Ptr m_net;
+};
+
+}  // namespace
+
+QString jarsDir()
+{
+    return FS::PathCombine(APPLICATION->root(), "phihud");
+}
+
+std::optional<Support> supportFor(const QString& loader, const QString& mcVersion)
+{
+    if (loader == FABRIC && FABRIC_VERSIONS.contains(mcVersion))
+        return Support{ loader, mcVersion, QString("phihud-fabric-%1.jar").arg(mcVersion) };
+    if (loader == FORGE && FORGE_VERSIONS.contains(mcVersion))
+        return Support{ loader, mcVersion, QString("phihud-forge-%1.jar").arg(mcVersion) };
+    return std::nullopt;
+}
+
+std::optional<Support> supportFor(MinecraftInstance* inst)
+{
+    auto* profile = inst->getPackProfile();
+    if (profile->getComponentVersion("net.minecraft").isEmpty()) {
+        if (auto res = profile->reload(Net::Mode::Offline); !res)
+            qWarning() << "PhiHud: failed to load components:" << res.error();
+    }
+    auto mc = profile->getComponentVersion("net.minecraft");
+    for (const auto& loader : { FABRIC, FORGE }) {
+        if (!profile->getComponentVersion(loader).isEmpty())
+            return supportFor(loader, mc);
+    }
+    return std::nullopt;
+}
+
+QString supportedTargets()
+{
+    return QObject::tr("Fabric %1 or Forge %2").arg(FABRIC_VERSIONS.join(" / "), FORGE_VERSIONS.join(" / "));
+}
+
+bool jarAvailable(const Support& support)
+{
+    return QFile::exists(FS::PathCombine(jarsDir(), support.jarName));
+}
+
+QString installedJar(MinecraftInstance* inst)
+{
+    auto jars = findJars(inst->modsRoot(), "phihud-*.jar");
+    return jars.isEmpty() ? QString() : jars.first();
+}
+
+bool isInstalled(MinecraftInstance* inst)
+{
+    return !installedJar(inst).isEmpty();
+}
+
+Task::Ptr installTask(MinecraftInstance* inst)
+{
+    auto support = supportFor(inst);
+    if (!support)
+        return nullptr;
+    return makeShared<InstallTask>(inst, *support);
+}
+
+void remove(MinecraftInstance* inst)
+{
+    for (const auto& jar : findJars(inst->modsRoot(), "phihud-*.jar"))
+        QFile::remove(jar);
+}
+
+// ---- config ----
+
+namespace {
+struct WidgetInfo {
+    const char* id;
+    const char* name;  // tr() source
+    bool enabled;
+    const char* anchor;
+    int order;
+};
+// Spec order; defaults from the spec JSON.
+const WidgetInfo WIDGETS[] = {
+    { "fps", "FPS", true, "top-left", 0 },
+    { "tps", "TPS", true, "top-left", 1 },
+    { "coords", "Coordinates", true, "top-left", 2 },
+    { "direction", "Direction", true, "top-left", 3 },
+    { "ping", "Ping", false, "top-right", 0 },
+    { "memory", "Memory", false, "top-right", 1 },
+    { "clock", "Clock", false, "top-right", 2 },
+    { "armor", "Armor", false, "bottom-left", 0 },
+    { "inventory", "Inventory", false, "bottom-right", 0 },
+};
+const QStringList ANCHORS = { "top-left", "top-right", "bottom-left", "bottom-right" };
+}  // namespace
+
+HudConfig::HudConfig()
+{
+    for (const auto& w : WIDGETS)
+        widgets[w.id] = WidgetConfig{ w.enabled, w.anchor, w.order };
+}
+
+const QStringList& widgetIds()
+{
+    static const QStringList ids = [] {
+        QStringList out;
+        for (const auto& w : WIDGETS)
+            out << w.id;
+        return out;
+    }();
+    return ids;
+}
+
+QString widgetName(const QString& id)
+{
+    for (const auto& w : WIDGETS)
+        if (id == w.id)
+            return QObject::tr(w.name);
+    return id;
+}
+
+const QStringList& anchors()
+{
+    return ANCHORS;
+}
+
+QString anchorName(const QString& anchor)
+{
+    if (anchor == "top-left")
+        return QObject::tr("Top left");
+    if (anchor == "top-right")
+        return QObject::tr("Top right");
+    if (anchor == "bottom-left")
+        return QObject::tr("Bottom left");
+    if (anchor == "bottom-right")
+        return QObject::tr("Bottom right");
+    return anchor;
+}
+
+QString configPath(MinecraftInstance* inst)
+{
+    return FS::PathCombine(inst->gameRoot(), "config", "phihud.json");
+}
+
+HudConfig readConfig(MinecraftInstance* inst)
+{
+    HudConfig cfg;
+    auto path = configPath(inst);
+    if (!QFile::exists(path))
+        return cfg;
+    auto root = Json::requireObject(path, "phihud.json");
+    if (!root) {
+        qWarning() << "PhiHud: unreadable config" << path << root.error();
+        return cfg;
+    }
+    const auto& o = *root;
+    cfg.enabled = o["enabled"].toBool(cfg.enabled);
+    cfg.scale = o["scale"].toDouble(cfg.scale);
+    cfg.color = o["color"].toString(cfg.color);
+    cfg.background = o["background"].toBool(cfg.background);
+    cfg.backgroundOpacity = o["backgroundOpacity"].toDouble(cfg.backgroundOpacity);
+    cfg.shadow = o["shadow"].toBool(cfg.shadow);
+    cfg.margin = o["margin"].toInt(cfg.margin);
+    auto widgets = o["widgets"].toObject();
+    for (auto it = cfg.widgets.begin(); it != cfg.widgets.end(); ++it) {
+        auto w = widgets[it.key()].toObject();
+        it->enabled = w["enabled"].toBool(it->enabled);
+        auto anchor = w["anchor"].toString();
+        if (ANCHORS.contains(anchor))
+            it->anchor = anchor;
+        it->order = w["order"].toInt(it->order);
+    }
+    return cfg;
+}
+
+bool writeConfig(MinecraftInstance* inst, const HudConfig& cfg)
+{
+    QJsonObject widgets;
+    for (auto it = cfg.widgets.cbegin(); it != cfg.widgets.cend(); ++it)
+        widgets[it.key()] = QJsonObject{ { "enabled", it->enabled }, { "anchor", it->anchor }, { "order", it->order } };
+    QJsonObject root{
+        { "version", 1 },
+        { "enabled", cfg.enabled },
+        { "scale", cfg.scale },
+        { "color", cfg.color },
+        { "background", cfg.background },
+        { "backgroundOpacity", cfg.backgroundOpacity },
+        { "shadow", cfg.shadow },
+        { "margin", cfg.margin },
+        { "widgets", widgets },
+    };
+    auto path = configPath(inst);
+    FS::ensureFilePathExists(path);
+    if (auto res = Json::write(root, path); !res) {
+        qWarning() << "PhiHud: failed to write" << path << res.error();
+        return false;
+    }
+    return true;
+}
+
+}  // namespace PhiHud
+
+#include "PhiHud.moc"
