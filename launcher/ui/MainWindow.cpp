@@ -237,7 +237,12 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
 
     // add the toolbar toggles to the view menu
     ui->viewMenu->addAction(ui->instanceToolBar->toggleViewAction());
-    ui->viewMenu->addAction(ui->newsToolBar->toggleViewAction());
+    if (BuildConfig.NEWS_RSS_URL.isEmpty()) {
+        // no news feed configured: drop the toolbar entirely
+        removeToolBar(ui->newsToolBar);
+    } else {
+        ui->viewMenu->addAction(ui->newsToolBar->toggleViewAction());
+    }
 
     updateThemeMenu();
     updateMainToolBar();
@@ -395,7 +400,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
     // auto accounts = APPLICATION->accounts();
 
     // load the news
-    {
+    if (!BuildConfig.NEWS_RSS_URL.isEmpty()) {
         m_newsChecker->reloadNews();
         updateNewsLabel();
     }
