@@ -477,7 +477,7 @@
     <iconset theme="launcher"/>
    </property>
    <property name="text">
-    <string>Iota (zip)</string>
+    <string>Phi Launcher (zip)</string>
    </property>
   </action>
   <action name="actionExportInstanceMrPack">

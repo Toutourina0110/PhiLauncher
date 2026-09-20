@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop">
   <id>@Launcher_AppID@</id>
-  <name>Iota</name>
+  <name>Phi Launcher</name>
   <summary>Custom Minecraft Launcher to easily manage multiple Minecraft installations at once</summary>
-  <developer id="org.iotalauncher">
-    <name>Iota Contributors</name>
+  <developer id="org.philauncher">
+    <name>Phi Launcher Contributors</name>
   </developer>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-only</project_license>
   <description>
-    <p>Iota is a custom launcher for Minecraft, based on Prism Launcher, with built-in playtime statistics.</p>
+    <p>Phi Launcher is a custom launcher for Minecraft, based on Prism Launcher, with built-in playtime statistics.</p>
     <p>Features:</p>
     <ul>
       <li>Easily install game modifications, such as Fabric, Forge and Quilt</li>

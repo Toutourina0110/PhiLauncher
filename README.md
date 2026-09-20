@@ -1,8 +1,8 @@
-# Iota
+# Phi Launcher
 
-Iota is a Minecraft launcher based on [Prism Launcher](https://github.com/PrismLauncher/PrismLauncher), with built-in playtime statistics (per-day charts, top instances, hour-of-week heatmap, session history).
+Phi Launcher is a Minecraft launcher based on [Prism Launcher](https://github.com/PrismLauncher/PrismLauncher), with built-in playtime statistics (per-day charts, top instances, hour-of-week heatmap, session history).
 
-On first launch, Iota offers to import existing Prism Launcher data (instances, accounts, settings). The two launchers keep separate data folders afterwards.
+On first launch, Phi Launcher offers to import existing Prism Launcher data (instances, accounts, settings). The two launchers keep separate data folders afterwards.
 
 ## Building
 
@@ -15,4 +15,4 @@ cmake --build build --config Release
 
 ## License
 
-GPL-3.0-only. See [COPYING.md](COPYING.md). Iota carries the copyright of the Prism Launcher, PolyMC and MultiMC contributors whose work it builds on.
+GPL-3.0-only. See [COPYING.md](COPYING.md). Phi Launcher carries the copyright of the Prism Launcher, PolyMC and MultiMC contributors whose work it builds on.
