@@ -45,6 +45,7 @@
 #include <QUuid>
 
 #include "Application.h"
+#include "StatsStore.h"
 #include "Json.h"
 #include "launch/LaunchTask.h"
 #include "settings/Setting.h"
@@ -312,6 +313,7 @@ void BaseInstance::setMinecraftRunning(bool running)
         if (countTimePlayed()) {
             qint64 globalTotal = APPLICATION->playtimeSettings()->get("TotalPlayTime").toLongLong();
             APPLICATION->playtimeSettings()->set("TotalPlayTime", globalTotal + secondsPlayed);
+            APPLICATION->stats()->record({ id(), name(), m_timeStarted.toMSecsSinceEpoch(), secondsPlayed });
         }
 
         emit propertiesChanged();

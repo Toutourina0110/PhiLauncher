@@ -61,6 +61,7 @@ class GenericPageProvider;
 class QFile;
 class HttpMetaCache;
 class SettingsObject;
+class StatsStore;
 class InstanceList;
 class AccountList;
 class IconList;
@@ -119,6 +120,7 @@ class Application : public QApplication {
 
     SettingsObject* settings() const { return m_settings.get(); }
     SettingsObject* playtimeSettings() const { return m_playtimeSettings.get(); }
+    StatsStore* stats() const { return m_stats.get(); }
 
     qint64 timeSinceStart() const { return m_startTime.msecsTo(QDateTime::currentDateTime()); }
 
@@ -257,6 +259,7 @@ class Application : public QApplication {
 
     std::unique_ptr<SettingsObject> m_settings;
     std::unique_ptr<SettingsObject> m_playtimeSettings;
+    std::unique_ptr<StatsStore> m_stats;
     std::unique_ptr<InstanceList> m_instances;
     std::unique_ptr<IconList> m_icons;
     std::unique_ptr<JavaInstallList> m_javalist;

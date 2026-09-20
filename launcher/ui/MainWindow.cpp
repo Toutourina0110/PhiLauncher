@@ -95,6 +95,7 @@
 #include "ui/GuiUtil.h"
 #include "ui/ViewLogWindow.h"
 #include "ui/dialogs/AboutDialog.h"
+#include "ui/dialogs/StatsDialog.h"
 #include "ui/dialogs/CopyInstanceDialog.h"
 #include "ui/dialogs/CreateShortcutDialog.h"
 #include "ui/dialogs/CustomMessageBox.h"
@@ -404,6 +405,10 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         updatesAllowedChanged(updatesAllowed);
 
         connect(ui->actionCheckUpdate, &QAction::triggered, this, &MainWindow::checkForUpdates);
+        connect(ui->actionStats, &QAction::triggered, this, [this] {
+            StatsDialog dialog(APPLICATION->stats(), this);
+            dialog.exec();
+        });
 
         // set up the updater object.
         auto updater = APPLICATION->updater();

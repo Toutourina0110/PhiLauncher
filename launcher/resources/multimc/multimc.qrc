@@ -99,6 +99,7 @@
         <file>48x48/help.png</file>
         <file>64x64/help.png</file>
 
+        <file>scalable/stats.svg</file>
         <!-- Open news. Our own. -->
         <file>scalable/news.svg</file>
         <file>16x16/news.png</file>

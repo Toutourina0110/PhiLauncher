@@ -118,6 +118,7 @@
 #include "tools/JVisualVM.h"
 
 #include "settings/INISettingsObject.h"
+#include "StatsStore.h"
 #include "settings/Setting.h"
 
 #include "meta/Index.h"
@@ -942,6 +943,9 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
         m_playtimeSettings.reset(new INISettingsObject(QString("playtime.cfg"), this));
         m_playtimeSettings->registerSetting("TotalPlayTime", 0);
         m_playtimeSettings->registerSetting("TotalPlayTimeMigrated", false);
+
+        m_stats.reset(new StatsStore(FS::PathCombine(m_dataPath, "sessions.json"), this));
+        m_stats->load();
     }
 
 #ifndef QT_NO_ACCESSIBILITY
@@ -1015,6 +1019,15 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
         qInfo() << "Loading Instances...";
         m_instances->loadList();
         qInfo() << "<> Instances loaded.";
+
+        // first run with session tracking: seed the store with pre-existing per-instance playtime
+        if (m_stats->isFresh()) {
+            for (int i = 0; i < m_instances->count(); i++) {
+                auto inst = m_instances->at(i);
+                if (inst->totalTimePlayed() > 0)
+                    m_stats->record({ inst->id(), inst->name(), 0, inst->totalTimePlayed() });
+            }
+        }
     }
 
     // and accounts

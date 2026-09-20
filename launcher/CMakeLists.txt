@@ -12,6 +12,8 @@ set(CORE_SOURCES
     BaseVersionList.cpp
     InstanceList.h
     InstanceList.cpp
+    StatsStore.h
+    StatsStore.cpp
     InstanceTask.h
     InstanceTask.cpp
     LoggedProcess.h
@@ -1030,6 +1032,8 @@ SET(LAUNCHER_SOURCES
     # GUI - dialogs
     ui/dialogs/AboutDialog.cpp
     ui/dialogs/AboutDialog.h
+    ui/dialogs/StatsDialog.cpp
+    ui/dialogs/StatsDialog.h
     ui/dialogs/ProfileSelectDialog.cpp
     ui/dialogs/ProfileSelectDialog.h
     ui/dialogs/ProfileSetupDialog.cpp
@@ -1098,6 +1102,8 @@ SET(LAUNCHER_SOURCES
     # GUI - widgets
     ui/widgets/CheckComboBox.cpp
     ui/widgets/CheckComboBox.h
+    ui/widgets/StatsCharts.cpp
+    ui/widgets/StatsCharts.h
     ui/widgets/Common.cpp
     ui/widgets/Common.h
     ui/widgets/CustomCommands.cpp
