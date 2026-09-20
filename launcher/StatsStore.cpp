@@ -23,10 +23,67 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QMap>
+#include <QTimer>
 
 #include "Json.h"
 
-StatsStore::StatsStore(const QString& file, QObject* parent) : QObject(parent), m_file(file) {}
+StatsStore::StatsStore(const QString& file, QObject* parent) : QObject(parent), m_file(file)
+{
+    m_timer = new QTimer(this);
+    m_timer->setInterval(30 * 1000);
+    connect(m_timer, &QTimer::timeout, this, &StatsStore::tick);
+}
+
+void StatsStore::beginSession(const QString& instanceId, const QString& instanceName)
+{
+    m_sessions.append({ instanceId, instanceName, QDateTime::currentMSecsSinceEpoch(), 0 });
+    m_active.append(m_sessions.size() - 1);
+    m_fresh = false;
+    if (!m_timer->isActive())
+        m_timer->start();
+    emit changed();
+}
+
+void StatsStore::endSession(const QString& instanceId, qint64 durationSeconds)
+{
+    for (int i = m_active.size() - 1; i >= 0; i--) {
+        int idx = m_active[i];
+        if (m_sessions[idx].instanceId != instanceId)
+            continue;
+        m_sessions[idx].duration = durationSeconds;
+        m_active.removeAt(i);
+        if (durationSeconds <= 0) {
+            m_sessions.removeAt(idx);  // nothing worth keeping
+            for (int& other : m_active)
+                if (other > idx)
+                    other--;
+        }
+        if (m_active.isEmpty())
+            m_timer->stop();
+        save();
+        emit changed();
+        return;
+    }
+    // no live session found (RecordGameTime toggled mid-run?): fall back to a plain record
+    record({ instanceId, QString(), QDateTime::currentMSecsSinceEpoch() - durationSeconds * 1000, durationSeconds });
+}
+
+qint64 StatsStore::activeSeconds(const QString& instanceId) const
+{
+    for (int idx : m_active)
+        if (m_sessions[idx].instanceId == instanceId)
+            return m_sessions[idx].duration;
+    return 0;
+}
+
+void StatsStore::tick()
+{
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    for (int idx : m_active)
+        m_sessions[idx].duration = (now - m_sessions[idx].start) / 1000;
+    save();  // keeps the running session if the launcher dies mid-game
+    emit changed();
+}
 
 void StatsStore::load()
 {

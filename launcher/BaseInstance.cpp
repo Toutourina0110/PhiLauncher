@@ -302,6 +302,8 @@ void BaseInstance::setMinecraftRunning(bool running)
     if (running) {
         m_timeStarted = QDateTime::currentDateTime();
         setLastLaunch(m_timeStarted.toMSecsSinceEpoch());
+        if (countTimePlayed())
+            APPLICATION->stats()->beginSession(id(), name());
     } else {
         QDateTime timeEnded = QDateTime::currentDateTime();
         qint64 secondsPlayed = m_timeStarted.secsTo(timeEnded);
@@ -313,7 +315,7 @@ void BaseInstance::setMinecraftRunning(bool running)
         if (countTimePlayed()) {
             qint64 globalTotal = APPLICATION->playtimeSettings()->get("TotalPlayTime").toLongLong();
             APPLICATION->playtimeSettings()->set("TotalPlayTime", globalTotal + secondsPlayed);
-            APPLICATION->stats()->record({ id(), name(), m_timeStarted.toMSecsSinceEpoch(), secondsPlayed });
+            APPLICATION->stats()->endSession(id(), secondsPlayed);
         }
 
         emit propertiesChanged();

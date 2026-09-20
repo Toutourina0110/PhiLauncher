@@ -27,6 +27,7 @@
 
 #include "Application.h"
 #include "MMCTime.h"
+#include "StatsStore.h"
 #include "icons/IconList.h"
 #include "minecraft/MinecraftInstance.h"
 #include "ui/instanceview/InstanceCardDelegate.h"
@@ -148,6 +149,7 @@ void ResumePanel::setInstance(MinecraftInstance* newInstance)
     if (m_instance) {
         connect(m_instance, &BaseInstance::runningStatusChanged, this, &ResumePanel::refresh);
         connect(m_instance, &BaseInstance::propertiesChanged, this, &ResumePanel::refresh);
+        connect(APPLICATION->stats(), &StatsStore::changed, this, &ResumePanel::refresh, Qt::UniqueConnection);
         connect(m_instance, &QObject::destroyed, this, [this] {
             m_instance = nullptr;
             refresh();
@@ -168,7 +170,12 @@ void ResumePanel::refresh()
     m_version->setText(tr("Minecraft %1 %2 %3").arg(instanceMinecraftVersion(m_instance), kMiddleDot, instanceLoaderName(m_instance)));
 
     const bool noDays = APPLICATION->settings()->get("ShowGameTimeWithoutDays").toBool();
-    if (m_instance->lastLaunch() > 0 && m_instance->lastTimePlayed() > 0) {
+    const qint64 live = APPLICATION->stats()->activeSeconds(m_instance->id());
+    if (m_instance->isRunning()) {
+        m_played->setText(tr("Playing for %1 %2 total %3")
+                              .arg(Time::prettifyDuration(live, noDays), kMiddleDot,
+                                   Time::prettifyDuration(m_instance->totalTimePlayed() + live, noDays)));
+    } else if (m_instance->lastLaunch() > 0 && m_instance->lastTimePlayed() > 0) {
         const qint64 ago = qMax<qint64>(0, QDateTime::currentMSecsSinceEpoch() - m_instance->lastLaunch()) / 1000;
         m_played->setText(tr("Played %1, %2 ago %3 total %4")
                               .arg(Time::prettifyDuration(m_instance->lastTimePlayed(), noDays), Time::prettifyDuration(ago, noDays),

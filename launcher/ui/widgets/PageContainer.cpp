@@ -306,7 +306,7 @@ void PageContainer::updateGridSize()
     const QSize vp = m_pageList->viewport()->size();
     // IconMode adds its own spacing around every cell; keep a few px of slack so nothing wraps or scrolls
     const int w = qMax(120, (vp.width() - spacing * (cols + 2) - 24) / cols);
-    const int h = qMax(110, (vp.height() - spacing * (rows + 2) - 24) / rows);
+    const int h = qMax(110, (vp.height() - spacing * (rows + 2) - 4) / rows);
     if (auto* d = dynamic_cast<PageCardDelegate*>(m_pageList->itemDelegate()))
         d->setTileSize(QSize(w, h));
     m_pageList->setGridSize(QSize(w + spacing, h + spacing));

@@ -41,6 +41,12 @@ class StatsStore : public QObject {
 
     void load();
     void record(const GameSession& session);
+
+    /// Live tracking: a session opened at launch is counted (and ticked every 30 s) while the game runs.
+    void beginSession(const QString& instanceId, const QString& instanceName);
+    void endSession(const QString& instanceId, qint64 durationSeconds);
+    /// Seconds of the running session for this instance, 0 when it is not running.
+    qint64 activeSeconds(const QString& instanceId) const;
     void clear();
 
     /// True when load() found no file - caller may import legacy playtime.
@@ -66,7 +72,11 @@ class StatsStore : public QObject {
    private:
     void save();
 
+    void tick();
+
     QString m_file;
     QList<GameSession> m_sessions;
+    QList<int> m_active;  // indices into m_sessions of running sessions
+    class QTimer* m_timer = nullptr;
     bool m_fresh = false;
 };
