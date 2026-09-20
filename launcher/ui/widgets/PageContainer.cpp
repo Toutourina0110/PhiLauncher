@@ -110,6 +110,7 @@ PageContainer::PageContainer(BasePageProvider* pageProvider, QString defaultId, 
     m_pageList->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
     m_pageList->setModel(m_proxyModel);
     connect(m_pageList->selectionModel(), &QItemSelectionModel::currentRowChanged, this, &PageContainer::currentChanged);
+    connect(m_pageList, &QAbstractItemView::activated, this, [this](const QModelIndex&) { emit pageActivated(); });
     m_pageStack->setStackingMode(QStackedLayout::StackOne);
     m_pageList->setFocus();
     selectPage(std::move(defaultId));
@@ -248,6 +249,46 @@ void PageContainer::useCardStyle(bool cards)
     }
     delete oldDelegate;
     m_pageList->updateGeometry();
+}
+
+void PageContainer::showListOnly()
+{
+    m_pageList->show();
+    m_header->hide();
+    if (auto* w = m_pageStack->currentWidget())
+        w->hide();
+    for (int i = 0; i < m_pageStack->count(); i++)
+        m_pageStack->widget(i)->hide();
+    m_layout->addWidget(m_pageList, 0, 0, 3, 2);  // span both columns
+}
+
+void PageContainer::showPageOnly()
+{
+    m_pageList->hide();
+    m_header->show();
+    if (auto* w = m_pageStack->currentWidget())
+        w->show();
+    m_layout->addWidget(m_pageList, 0, 0, 3, 1);
+}
+
+void PageContainer::useGridList(bool grid)
+{
+    if (grid) {
+        m_pageList->setViewMode(QListView::IconMode);
+        m_pageList->setFlow(QListView::LeftToRight);
+        m_pageList->setWrapping(true);
+        m_pageList->setResizeMode(QListView::Adjust);
+        m_pageList->setMovement(QListView::Static);
+        m_pageList->setGridSize(QSize(292, 60));
+        m_pageList->setMinimumWidth(0);
+        m_pageList->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        m_pageList->setSizeAdjustPolicy(QAbstractScrollArea::AdjustIgnored);
+    } else {
+        m_pageList->setViewMode(QListView::ListMode);
+        m_pageList->setFlow(QListView::TopToBottom);
+        m_pageList->setWrapping(false);
+        m_pageList->setGridSize(QSize());
+    }
 }
 
 void PageContainer::setBreadcrumbRoot(const QString& root)

@@ -96,6 +96,11 @@ class PageContainer : public QWidget, public BasePageContainer {
 
     void hidePageList() { m_pageList->hide(); }
 
+    /// Wizard helpers: show only the page list (as a grid of cards) or only the current page.
+    void showListOnly();
+    void showPageOnly();
+    void useGridList(bool grid);
+
    private:
     void createUI();
     void retranslate();
@@ -105,6 +110,8 @@ class PageContainer : public QWidget, public BasePageContainer {
     void help();
 
    signals:
+    /// Emitted when a page entry is activated (double click / Enter) in the list.
+    void pageActivated();
     /** Emitted when the currently selected page is changed */
     void selectedPageChanged(BasePage* previous, BasePage* selected);
 

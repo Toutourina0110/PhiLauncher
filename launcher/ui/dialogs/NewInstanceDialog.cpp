@@ -49,7 +49,9 @@
 #include "VersionSelectDialog.h"
 #include "ui/dialogs/CustomMessageBox.h"
 
+#include <QButtonGroup>
 #include <QDialogButtonBox>
+#include <QToolButton>
 #include <QFileDialog>
 #include <QLayout>
 #include <QPushButton>
@@ -106,21 +108,65 @@ NewInstanceDialog::NewInstanceDialog(const QString& initialGroup,
     m_container = new PageContainer(this, {}, this);
     m_container->useSidebarStyle(false);
     m_container->useCardStyle(true);
+    m_container->useGridList(true);
     m_container->setBreadcrumbRoot(dialogTitle());
     m_container->setSizePolicy(QSizePolicy::Policy::Preferred, QSizePolicy::Policy::Expanding);
     m_container->layout()->setContentsMargins(0, 0, 0, 0);
-    ui->verticalLayout->insertWidget(2, m_container);
 
-    m_container->addButtons(m_buttons);
+    // step bar: three bevelled segments, the active one highlighted
+    m_stepBar = new QWidget(this);
+    auto* stepLayout = new QHBoxLayout(m_stepBar);
+    stepLayout->setContentsMargins(0, 0, 0, 0);
+    stepLayout->setSpacing(6);
+    auto* stepGroup = new QButtonGroup(this);
+    stepGroup->setExclusive(true);
+    const QStringList stepTitles = { tr("1. Source"), tr("2. Version && loader"), tr("3. Name && icon") };
+    for (int i = 0; i < stepTitles.size(); i++) {
+        auto* b = new QToolButton(m_stepBar);
+        b->setCheckable(true);
+        b->setText(stepTitles[i]);
+        b->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        b->setMinimumHeight(36);
+        stepGroup->addButton(b, i);
+        stepLayout->addWidget(b);
+        m_stepButtons.append(b);
+    }
+    connect(stepGroup, &QButtonGroup::idClicked, this, &NewInstanceDialog::goToStep);
+
+    ui->verticalLayout->insertWidget(0, m_stepBar);
+    ui->verticalLayout->insertWidget(1, m_container);
+    ui->verticalLayout->setStretchFactor(m_container, 1);
+    ui->verticalLayout->insertStretch(3, 0);  // keeps the step-3 form at the top when the container is hidden
+    // form (name / group / location / icon) is step 3; it comes from the .ui and is already in the layout
+
+    m_buttons->setStandardButtons(QDialogButtonBox::Help | QDialogButtonBox::Cancel | QDialogButtonBox::Ok);
+    m_backButton = new QPushButton(tr("< &Back"), this);
+    m_nextButton = new QPushButton(tr("&Next >"), this);
+    m_nextButton->setObjectName("launchButton");  // primary look in themes that style it
+    m_buttons->addButton(m_backButton, QDialogButtonBox::ActionRole);
+    m_buttons->addButton(m_nextButton, QDialogButtonBox::ActionRole);
+    m_buttons->button(QDialogButtonBox::Ok)->hide();  // kept for pages that toggle it; mirrored onto Next/Create
+    ui->verticalLayout->addWidget(m_buttons);
+
+    connect(m_backButton, &QPushButton::clicked, this, [this] { goToStep(m_step - 1); });
+    connect(m_nextButton, &QPushButton::clicked, this, [this] {
+        if (m_step == 2)
+            accept();
+        else
+            goToStep(m_step + 1);
+    });
+    connect(m_container, &PageContainer::pageActivated, this, [this] {
+        if (m_step == 0)
+            goToStep(1);
+    });
     connect(m_container, &PageContainer::selectedPageChanged, this, [this](BasePage* /*previous*/, BasePage* /*selected*/) {
         m_buttons->button(QDialogButtonBox::Ok)->setEnabled(m_creationTask && !instName().isEmpty());
+        if (m_step == 0)
+            m_container->showListOnly();  // the stack re-shows the new page; keep step 1 list-only
+        updateDialogState();
     });
 
-    // Bonk Qt over its stupid head and make sure it understands which button is the default one...
-    // See: https://stackoverflow.com/questions/24556831/qbuttonbox-set-default-button
     auto* okButton = m_buttons->button(QDialogButtonBox::Ok);
-    okButton->setDefault(true);
-    okButton->setAutoDefault(true);
     okButton->setText(tr("OK"));
     connect(okButton, &QPushButton::clicked, this, &NewInstanceDialog::accept);
 
@@ -136,11 +182,14 @@ NewInstanceDialog::NewInstanceDialog(const QString& initialGroup,
     helpButton->setText(tr("Help"));
     connect(helpButton, &QPushButton::clicked, m_container, &PageContainer::help);
 
+    goToStep(0);
+
     if (!url.isEmpty()) {
         QUrl actualUrl(url);
         m_container->selectPage("import");
         m_importPage->setUrl(url);
         m_importPage->setExtraInfo(extraInfo);
+        goToStep(1);
     }
 
     updateDialogState();
@@ -335,6 +384,54 @@ void NewInstanceDialog::updateDialogState()
     if (okButton->isEnabled() != allowOK) {
         okButton->setEnabled(allowOK);
     }
+    // wizard buttons (pages call this during construction, before the wizard chrome exists)
+    if (!m_nextButton)
+        return;
+    m_backButton->setEnabled(m_step > 0);
+    switch (m_step) {
+        case 0:
+            m_nextButton->setText(tr("&Next >"));
+            m_nextButton->setEnabled(m_container->selectedPage() != nullptr);
+            break;
+        case 1:
+            m_nextButton->setText(tr("&Next >"));
+            m_nextButton->setEnabled(m_creationTask != nullptr);
+            break;
+        default:
+            m_nextButton->setText(tr("&Create"));
+            m_nextButton->setEnabled(allowOK);
+            break;
+    }
+    m_nextButton->setDefault(true);
+    // step subtitles
+    if (auto* page = m_container->selectedPage())
+        m_stepButtons[0]->setText(tr("1. Source") + "\n" + page->displayName());
+    m_stepButtons[1]->setText(tr("2. Version && loader") + (m_suggestedName.isEmpty() ? QString() : "\n" + m_suggestedName));
+    m_stepButtons[2]->setText(tr("3. Name && icon") + (instName().isEmpty() ? QString() : "\n" + instName()));
+}
+
+void NewInstanceDialog::goToStep(int step)
+{
+    m_step = qBound(0, step, 2);
+    m_stepButtons[m_step]->setChecked(true);
+    switch (m_step) {
+        case 0:
+            m_container->show();
+            m_container->showListOnly();
+            ui->formWidget->hide();
+            break;
+        case 1:
+            m_container->show();
+            m_container->showPageOnly();
+            ui->formWidget->hide();
+            break;
+        default:
+            m_container->hide();
+            ui->formWidget->show();
+            ui->instNameTextBox->setFocus();
+            break;
+    }
+    updateDialogState();
 }
 
 QString NewInstanceDialog::instName() const

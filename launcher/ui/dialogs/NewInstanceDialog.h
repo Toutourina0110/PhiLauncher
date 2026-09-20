@@ -46,6 +46,7 @@ class NewInstanceDialog;
 
 class PageContainer;
 class QDialogButtonBox;
+class QToolButton;
 class ImportPage;
 class FlamePage;
 
@@ -60,6 +61,7 @@ class NewInstanceDialog : public QDialog, public BasePageProvider {
     ~NewInstanceDialog() override;
 
     void updateDialogState();
+    void goToStep(int step);
 
     void setSuggestedPack(const QString& name = QString(), InstanceTask* task = nullptr);
     void setSuggestedPack(const QString& name, QString version, InstanceTask* task = nullptr);
@@ -94,6 +96,11 @@ class NewInstanceDialog : public QDialog, public BasePageProvider {
     Ui::NewInstanceDialog* ui = nullptr;
     PageContainer* m_container = nullptr;
     QDialogButtonBox* m_buttons = nullptr;
+    QWidget* m_stepBar = nullptr;
+    QList<class QToolButton*> m_stepButtons;
+    QPushButton* m_backButton = nullptr;
+    QPushButton* m_nextButton = nullptr;
+    int m_step = 0;
 
     QString m_instIconKey;
     ImportPage* m_importPage = nullptr;
