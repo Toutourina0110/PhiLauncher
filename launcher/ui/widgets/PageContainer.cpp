@@ -279,16 +279,45 @@ void PageContainer::useGridList(bool grid)
         m_pageList->setWrapping(true);
         m_pageList->setResizeMode(QListView::Adjust);
         m_pageList->setMovement(QListView::Static);
-        m_pageList->setGridSize(QSize(292, 60));
+        m_pageList->setSpacing(6);
+        m_pageList->setUniformItemSizes(false);
         m_pageList->setMinimumWidth(0);
         m_pageList->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
         m_pageList->setSizeAdjustPolicy(QAbstractScrollArea::AdjustIgnored);
+        if (auto* d = dynamic_cast<PageCardDelegate*>(m_pageList->itemDelegate()))
+            d->setTileMode(true);
+        m_pageList->viewport()->installEventFilter(this);
+        updateGridSize();
     } else {
         m_pageList->setViewMode(QListView::ListMode);
         m_pageList->setFlow(QListView::TopToBottom);
         m_pageList->setWrapping(false);
         m_pageList->setGridSize(QSize());
     }
+}
+
+/// Tiles fill the viewport: 3 columns, rows sized so every page fits without scrolling (min 110px).
+void PageContainer::updateGridSize()
+{
+    const int spacing = m_pageList->spacing();
+    const int cols = 3;
+    const int count = m_proxyModel->rowCount();
+    const int rows = qMax(1, (count + cols - 1) / cols);
+    const QSize vp = m_pageList->viewport()->size();
+    // IconMode adds its own spacing around every cell; keep a few px of slack so nothing wraps or scrolls
+    const int w = qMax(120, (vp.width() - spacing * (cols + 2) - 24) / cols);
+    const int h = qMax(110, (vp.height() - spacing * (rows + 2) - 24) / rows);
+    if (auto* d = dynamic_cast<PageCardDelegate*>(m_pageList->itemDelegate()))
+        d->setTileSize(QSize(w, h));
+    m_pageList->setGridSize(QSize(w + spacing, h + spacing));
+    m_pageList->doItemsLayout();
+}
+
+bool PageContainer::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched == m_pageList->viewport() && event->type() == QEvent::Resize && m_pageList->viewMode() == QListView::IconMode)
+        updateGridSize();
+    return QWidget::eventFilter(watched, event);
 }
 
 void PageContainer::setBreadcrumbRoot(const QString& root)

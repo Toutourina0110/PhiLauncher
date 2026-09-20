@@ -96,10 +96,54 @@ class PageCardDelegate : public QStyledItemDelegate {
 
     PageCardDelegate(QObject* parent) : QStyledItemDelegate(parent) {}
 
+    /// Tile mode: the card fills its grid cell, big icon on top, centered title and wrapped description.
+    void setTileMode(bool tiles) { m_tiles = tiles; }
+    void setTileSize(const QSize& size) { m_tileSize = size; }
+
     QSize sizeHint(const QStyleOptionViewItem& /*option*/, const QModelIndex& index) const override
     {
+        if (m_tiles)
+            return m_tileSize;
         const bool hasDesc = !index.data(PageModel::DescriptionRole).toString().isEmpty();
         return QSize(280, hasDesc ? 52 : 48);
+    }
+
+    void paintTile(QPainter* painter, const QStyleOptionViewItem& opt, const QModelIndex& index) const
+    {
+        const bool selected = opt.state & QStyle::State_Selected;
+        const QPalette& pal = opt.palette;
+        const int bigIcon = 56;
+
+        painter->fillRect(opt.rect, selected ? pal.highlight() : pal.alternateBase());
+        painter->setPen(QPen(selected ? pal.highlight().color() : pal.mid().color(), 1));
+        painter->drawRect(opt.rect.adjusted(0, 0, -1, -1));
+
+        const QRect content = opt.rect.adjusted(padding * 2, padding * 2, -padding * 2, -padding * 2);
+        const QString title = index.data(Qt::DisplayRole).toString();
+        const QString desc = index.data(PageModel::DescriptionRole).toString();
+        QFont titleFont = opt.font;
+        titleFont.setBold(true);
+        titleFont.setPointSize(titleFont.pointSize() + 1);
+        const QFontMetrics titleFm(titleFont);
+        const QFontMetrics descFm(opt.font);
+        const QRect descBounds = descFm.boundingRect(QRect(0, 0, content.width(), 1000), Qt::TextWordWrap | Qt::AlignHCenter, desc);
+        const int total = bigIcon + padding + titleFm.height() + (desc.isEmpty() ? 0 : 2 + descBounds.height());
+        int y = content.top() + qMax(0, (content.height() - total) / 2);
+
+        opt.icon.paint(painter, QRect(content.center().x() - bigIcon / 2, y, bigIcon, bigIcon), Qt::AlignCenter,
+                       selected ? QIcon::Selected : QIcon::Normal);
+        y += bigIcon + padding;
+        painter->setFont(titleFont);
+        painter->setPen(selected ? pal.highlightedText().color() : pal.text().color());
+        painter->drawText(QRect(content.left(), y, content.width(), titleFm.height()), Qt::AlignHCenter | Qt::AlignVCenter,
+                          titleFm.elidedText(title, Qt::ElideRight, content.width()));
+        y += titleFm.height() + 2;
+        if (!desc.isEmpty()) {
+            painter->setFont(opt.font);
+            painter->setPen(selected ? pal.highlightedText().color() : pal.mid().color());
+            painter->drawText(QRect(content.left(), y, content.width(), content.bottom() - y + 1), Qt::TextWordWrap | Qt::AlignHCenter | Qt::AlignTop,
+                              desc);
+        }
     }
 
     void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override
@@ -111,6 +155,11 @@ class PageCardDelegate : public QStyledItemDelegate {
 
         painter->save();
         painter->setRenderHint(QPainter::Antialiasing, false);
+        if (m_tiles) {
+            paintTile(painter, opt, index);
+            painter->restore();
+            return;
+        }
         painter->fillRect(opt.rect, selected ? pal.highlight() : pal.alternateBase());
         painter->setPen(QPen(selected ? pal.highlight().color() : pal.mid().color(), 1));
         painter->drawRect(opt.rect.adjusted(0, 0, -1, -1));
@@ -148,6 +197,10 @@ class PageCardDelegate : public QStyledItemDelegate {
         }
         painter->restore();
     }
+
+   private:
+    bool m_tiles = false;
+    QSize m_tileSize{ 280, 130 };
 };
 
 class PageView : public QListView {

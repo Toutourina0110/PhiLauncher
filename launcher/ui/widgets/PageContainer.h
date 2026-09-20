@@ -100,9 +100,11 @@ class PageContainer : public QWidget, public BasePageContainer {
     void showListOnly();
     void showPageOnly();
     void useGridList(bool grid);
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
    private:
     void createUI();
+    void updateGridSize();
     void retranslate();
     void updateHeader(const QString& extraInfo = {});
 
