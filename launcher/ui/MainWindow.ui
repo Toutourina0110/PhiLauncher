@@ -175,6 +175,7 @@
      <bool>true</bool>
     </property>
     <addaction name="actionChangeTheme"/>
+    <addaction name="actionStats"/>
     <addaction name="separator"/>
     <addaction name="actionCAT"/>
     <addaction name="actionToggleStatusBar"/>

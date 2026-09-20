@@ -400,15 +400,16 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         updateNewsLabel();
     }
 
+    connect(ui->actionStats, &QAction::triggered, this, [this] {
+        StatsDialog dialog(APPLICATION->stats(), this);
+        dialog.exec();
+    });
+
     if (APPLICATION->updaterEnabled()) {
         bool updatesAllowed = APPLICATION->updatesAreAllowed();
         updatesAllowedChanged(updatesAllowed);
 
         connect(ui->actionCheckUpdate, &QAction::triggered, this, &MainWindow::checkForUpdates);
-        connect(ui->actionStats, &QAction::triggered, this, [this] {
-            StatsDialog dialog(APPLICATION->stats(), this);
-            dialog.exec();
-        });
 
         // set up the updater object.
         auto updater = APPLICATION->updater();

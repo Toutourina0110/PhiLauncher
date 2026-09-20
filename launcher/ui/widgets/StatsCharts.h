@@ -30,7 +30,7 @@ class BarChart : public QWidget {
     Q_OBJECT
    public:
     explicit BarChart(QWidget* parent = nullptr);
-    void setData(const QList<QPair<QString, qint64>>& data);
+    void setData(const QList<QPair<QString, qint64>>& values);
 
    protected:
     void paintEvent(QPaintEvent*) override;
@@ -48,7 +48,7 @@ class HBarChart : public QWidget {
     Q_OBJECT
    public:
     explicit HBarChart(QWidget* parent = nullptr);
-    void setData(const QList<QPair<QString, qint64>>& data);
+    void setData(const QList<QPair<QString, qint64>>& values);
 
    protected:
     void paintEvent(QPaintEvent*) override;

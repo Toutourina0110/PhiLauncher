@@ -57,9 +57,9 @@ BarChart::BarChart(QWidget* parent) : QWidget(parent)
     setMouseTracking(true);
 }
 
-void BarChart::setData(const QList<QPair<QString, qint64>>& data)
+void BarChart::setData(const QList<QPair<QString, qint64>>& values)
 {
-    m_data = data;
+    m_data = values;
     m_max = 0;
     for (const auto& d : m_data)
         m_max = std::max(m_max, d.second);
@@ -100,8 +100,9 @@ void BarChart::paintEvent(QPaintEvent*)
     const double slot = double(r.width()) / n;
     const int gap = slot > 6 ? 2 : 0;
     QFontMetrics fm = fontMetrics();
-    // label every k-th bar so labels never overlap
+    // label every k-th bar counted from the newest one so labels never overlap and the last bar is always labelled
     int labelEvery = std::max(1, int(std::ceil((fm.horizontalAdvance("00/00") + 6) / slot)));
+    const int labelW = fm.horizontalAdvance("00/00") + 4;
 
     for (int i = 0; i < n; i++) {
         int x0 = r.left() + int(i * slot);
@@ -112,9 +113,11 @@ void BarChart::paintEvent(QPaintEvent*)
             int h = std::max(2, int(double(track.height()) * m_data[i].second / m_max));
             g.fillRect(QRect(track.left(), track.bottom() - h + 1, track.width(), h), barColor(pal));
         }
-        if (i % labelEvery == 0 || i == n - 1) {
+        if ((n - 1 - i) % labelEvery == 0) {
+            int cx = (x0 + x1) / 2;
+            int lx = std::clamp(cx - labelW / 2, r.left(), r.right() - labelW);
             g.setPen(pal.color(QPalette::Text));
-            g.drawText(QRect(x0, r.bottom() + 2, x1 - x0, fm.height() + 2), Qt::AlignHCenter | Qt::AlignTop, m_data[i].first);
+            g.drawText(QRect(lx, r.bottom() + 2, labelW, fm.height() + 2), Qt::AlignHCenter | Qt::AlignTop, m_data[i].first);
         }
     }
 }
@@ -140,9 +143,9 @@ HBarChart::HBarChart(QWidget* parent) : QWidget(parent)
     setMouseTracking(true);
 }
 
-void HBarChart::setData(const QList<QPair<QString, qint64>>& data)
+void HBarChart::setData(const QList<QPair<QString, qint64>>& values)
 {
-    m_data = data;
+    m_data = values;
     m_max = 0;
     m_labelWidth = 0;
     QFontMetrics fm = fontMetrics();

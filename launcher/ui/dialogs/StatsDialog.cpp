@@ -17,6 +17,8 @@
 
 #include "StatsDialog.h"
 
+#include <algorithm>
+
 #include <QComboBox>
 #include <QDateTime>
 #include <QGroupBox>
@@ -152,12 +154,12 @@ void StatsDialog::refresh()
 
     m_heatmap->setData(m_store->heatmap());
 
-    const auto& all = m_store->sessions();
+    auto all = m_store->sessions();
+    std::sort(all.begin(), all.end(), [](const GameSession& a, const GameSession& b) { return a.start > b.start; });
     m_sessions->setRowCount(0);
-    for (int i = all.size() - 1; i >= 0 && m_sessions->rowCount() < 50; i--) {
-        const auto& s = all[i];
-        if (s.start <= 0)
-            continue;
+    for (const auto& s : all) {
+        if (s.start <= 0 || m_sessions->rowCount() >= 50)
+            break;
         int r = m_sessions->rowCount();
         m_sessions->insertRow(r);
         m_sessions->setItem(r, 0, new QTableWidgetItem(QLocale().toString(QDateTime::fromMSecsSinceEpoch(s.start), QLocale::ShortFormat)));
