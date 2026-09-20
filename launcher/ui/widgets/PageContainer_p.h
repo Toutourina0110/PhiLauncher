@@ -108,8 +108,10 @@ class PageCardDelegate : public QStyledItemDelegate {
         return QSize(280, hasDesc ? 52 : 48);
     }
 
-    void paintTile(QPainter* painter, const QStyleOptionViewItem& opt, const QModelIndex& index) const
+    void paintTile(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
     {
+        QStyleOptionViewItem opt = option;
+        opt.rect = option.rect.adjusted(3, 3, -3, -3);  // gap between tiles (the view has no spacing)
         const bool selected = opt.state & QStyle::State_Selected;
         const QPalette& pal = opt.palette;
         const int bigIcon = 56;

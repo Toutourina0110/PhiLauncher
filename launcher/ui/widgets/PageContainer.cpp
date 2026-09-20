@@ -279,7 +279,8 @@ void PageContainer::useGridList(bool grid)
         m_pageList->setWrapping(true);
         m_pageList->setResizeMode(QListView::Adjust);
         m_pageList->setMovement(QListView::Static);
-        m_pageList->setSpacing(6);
+        m_pageList->setSpacing(0);  // the tile delegate draws its own gap
+        m_pageList->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);  // rows are sized to fit
         m_pageList->setUniformItemSizes(false);
         m_pageList->setMinimumWidth(0);
         m_pageList->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -296,20 +297,19 @@ void PageContainer::useGridList(bool grid)
     }
 }
 
-/// Tiles fill the viewport: 3 columns, rows sized so every page fits without scrolling (min 110px).
+/// Tiles fill the viewport exactly: 3 columns, rows sized so every page fits without scrolling (min 110px).
 void PageContainer::updateGridSize()
 {
-    const int spacing = m_pageList->spacing();
     const int cols = 3;
     const int count = m_proxyModel->rowCount();
     const int rows = qMax(1, (count + cols - 1) / cols);
     const QSize vp = m_pageList->viewport()->size();
-    // IconMode adds its own spacing around every cell; keep a few px of slack so nothing wraps or scrolls
-    const int w = qMax(120, (vp.width() - spacing * (cols + 2) - 24) / cols);
-    const int h = qMax(110, (vp.height() - spacing * (rows + 2) - 4) / rows);
+    // a couple of px of slack: IconMode wraps a cell that touches the viewport edge
+    const int w = qMax(120, (vp.width() - 4) / cols);
+    const int h = qMax(110, (vp.height() - 4) / rows);
     if (auto* d = dynamic_cast<PageCardDelegate*>(m_pageList->itemDelegate()))
         d->setTileSize(QSize(w, h));
-    m_pageList->setGridSize(QSize(w + spacing, h + spacing));
+    m_pageList->setGridSize(QSize(w, h));
     m_pageList->doItemsLayout();
 }
 
