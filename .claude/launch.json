@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "theme-previews",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8765", "--directory", "C:/Users/Toutourina/AppData/Local/Temp/claude/A--claude-Iota/f548270a-0747-4ef3-baa1-6a5dd1fc788b/scratchpad/themes"],
+      "port": 8765
+    }
+  ]
+}

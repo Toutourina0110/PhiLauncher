@@ -65,6 +65,8 @@ class ThemeManager {
     std::map<QString, IconTheme> m_icons;
     QDir m_iconThemeFolder{"iconthemes"};
     QDir m_applicationThemeFolder{"themes"};
+
+    void seedBundledTheme(const QString& id);
     QDir m_catPacksFolder{"catpacks"};
     std::map<QString, std::unique_ptr<CatPack>> m_catPacks;
     QPalette m_defaultPalette;

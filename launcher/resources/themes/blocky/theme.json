@@ -1,0 +1,31 @@
+{
+    "name": "Blocky",
+    "widgets": "Fusion",
+    "qssFilePath": "themeStyle.css",
+    "colors": {
+        "Window": "#2b2b2b",
+        "WindowText": "#f0f0f0",
+        "Base": "#1e1e1e",
+        "AlternateBase": "#262626",
+        "Text": "#f0f0f0",
+        "Button": "#6f6f6f",
+        "ButtonText": "#ffffff",
+        "BrightText": "#ff5555",
+        "Highlight": "#3a8f3a",
+        "HighlightedText": "#ffffff",
+        "Link": "#55ff55",
+        "ToolTipBase": "#100010",
+        "ToolTipText": "#ffffff",
+        "fadeColor": "#2b2b2b",
+        "fadeAmount": 0.5
+    },
+    "logColors": {
+        "Message": "#f0f0f0",
+        "Launcher": "#55ff55",
+        "Debug": "#aaaaaa",
+        "Warning": "#ffaa00",
+        "Error": "#ff5555",
+        "Fatal": "#ff5555",
+        "FatalHighlight": "#5a1a1a"
+    }
+}

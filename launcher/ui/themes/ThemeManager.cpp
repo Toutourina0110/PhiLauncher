@@ -21,6 +21,7 @@
 #include <QApplication>
 #include <QDir>
 #include <QDirIterator>
+#include <QFontDatabase>
 #include <QIcon>
 #include <QImageReader>
 #include <QStyle>
@@ -37,6 +38,7 @@
 
 ThemeManager::ThemeManager()
 {
+    QFontDatabase::addApplicationFont(":/Minecraft.ttf");
     QIcon::setFallbackThemeName(QIcon::themeName());
     QIcon::setThemeSearchPaths(QIcon::themeSearchPaths() << m_iconThemeFolder.path());
 
@@ -157,6 +159,8 @@ void ThemeManager::initializeWidgets()
         themeWarningLog() << "Couldn't create theme folder";
     themeDebugLog() << "Theme Folder Path:" << m_applicationThemeFolder.absolutePath();
 
+    seedBundledTheme("blocky");
+
     QDirIterator directoryIterator(m_applicationThemeFolder.path(), QDir::Dirs | QDir::NoDotAndDotDot);
     while (directoryIterator.hasNext()) {
         QDir dir(directoryIterator.next());
@@ -178,6 +182,27 @@ void ThemeManager::initializeWidgets()
     }
 
     themeDebugLog() << "<> Widget themes initialized.";
+}
+
+/// Copies a theme shipped in resources into the user's themes folder (once), so its colors stay editable.
+void ThemeManager::seedBundledTheme(const QString& id)
+{
+    QDir target(m_applicationThemeFolder.filePath(id));
+    if (target.exists())
+        return;
+    QDirIterator it(":/themes/" + id, QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        QString src = it.next();
+        QString dst = target.filePath(QDir(":/themes/" + id).relativeFilePath(src));
+        QDir().mkpath(QFileInfo(dst).path());
+        if (!QFile::copy(src, dst)) {
+            themeWarningLog() << "Failed to seed theme file" << dst;
+            continue;
+        }
+        // files copied out of resources are read-only; make them editable
+        QFile::setPermissions(dst, QFile::ReadOwner | QFile::WriteOwner | QFile::ReadUser | QFile::WriteUser | QFile::ReadGroup | QFile::ReadOther);
+    }
+    themeDebugLog() << "Seeded bundled theme" << id << "into" << target.path();
 }
 
 #ifndef Q_OS_MACOS
