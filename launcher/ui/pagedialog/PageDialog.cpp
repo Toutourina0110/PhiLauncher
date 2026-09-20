@@ -29,6 +29,8 @@ PageDialog::PageDialog(BasePageProvider* pageProvider, QString defaultId, QWidge
 {
     setWindowTitle(pageProvider->dialogTitle());
     m_container = new PageContainer(pageProvider, std::move(defaultId), this);
+    m_container->useCardStyle(true);
+    m_container->setBreadcrumbRoot(pageProvider->dialogTitle());
 
     auto* mainLayout = new QVBoxLayout(this);
 
@@ -55,6 +57,9 @@ PageDialog::PageDialog(BasePageProvider* pageProvider, QString defaultId, QWidge
     connect(buttons->button(QDialogButtonBox::Help), &QPushButton::clicked, m_container, &PageContainer::help);
 
     restoreGeometry(QByteArray::fromBase64(APPLICATION->settings()->get("PagedGeometry").toString().toUtf8()));
+    // card list needs room; older saved geometries are narrower than that
+    if (width() < 980)
+        resize(980, qMax(height(), 640));
 }
 
 void PageDialog::accept()

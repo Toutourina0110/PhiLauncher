@@ -105,6 +105,8 @@ NewInstanceDialog::NewInstanceDialog(const QString& initialGroup,
 
     m_container = new PageContainer(this, {}, this);
     m_container->useSidebarStyle(false);
+    m_container->useCardStyle(true);
+    m_container->setBreadcrumbRoot(dialogTitle());
     m_container->setSizePolicy(QSizePolicy::Policy::Preferred, QSizePolicy::Policy::Expanding);
     m_container->layout()->setContentsMargins(0, 0, 0, 0);
     ui->verticalLayout->insertWidget(2, m_container);
@@ -145,11 +147,11 @@ NewInstanceDialog::NewInstanceDialog(const QString& initialGroup,
 
     if (APPLICATION->settings()->get("NewInstanceGeometry").isValid()) {
         restoreGeometry(QByteArray::fromBase64(APPLICATION->settings()->get("NewInstanceGeometry").toString().toUtf8()));
-    } else {
-        auto* screen = parent->screen();
-        auto geometry = screen->availableSize();
-        resize(width(), qMin(geometry.height() - 50, 710));
     }
+    // card list + drawer need room; older saved geometries are smaller than that
+    auto geometry = this->screen()->availableSize();
+    if (width() < 980 || height() < 620)
+        resize(qMax(width(), 980), qMin(qMax(height(), 620), geometry.height() - 50));
 
     connect(m_container, &PageContainer::selectedPageChanged, this, &NewInstanceDialog::selectedPageChanged);
 }

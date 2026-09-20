@@ -50,6 +50,7 @@ class LanguagePage : public QWidget, public BasePage {
     virtual ~LanguagePage();
 
     QString displayName() const override { return tr("Language"); }
+    QString description() const override { return tr("Interface language"); }
     QIcon icon() const override { return QIcon::fromTheme("language"); }
     QString id() const override { return "language-settings"; }
     QString helpPage() const override { return "Language-settings"; }

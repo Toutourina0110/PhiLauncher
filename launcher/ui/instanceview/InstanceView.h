@@ -79,6 +79,8 @@ class InstanceView : public QAbstractItemView {
 
     int spacing() const { return m_spacing; };
     void setPaintCat(bool visible);
+    /// column width used to flow items; call before the view is shown, must match the delegate's sizeHint width
+    void setItemWidth(int width) { m_itemWidth = width; }
 
    public slots:
     virtual void updateGeometries() override;

@@ -62,6 +62,7 @@ class ModrinthPage : public QWidget, public ModpackProviderBasePage {
     ~ModrinthPage() override;
 
     QString displayName() const override { return tr("Modrinth"); }
+    QString description() const override { return tr("Modpacks from Modrinth"); }
     QIcon icon() const override { return QIcon::fromTheme("modrinth"); }
     QString id() const override { return "modrinth"; }
     QString helpPage() const override { return "Modrinth-platform"; }

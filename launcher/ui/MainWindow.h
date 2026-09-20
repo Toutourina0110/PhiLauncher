@@ -61,6 +61,8 @@ class InstanceView;
 class KonamiCode;
 class InstanceTask;
 class LabeledToolButton;
+class ResumePanel;
+class ActivityPanel;
 
 namespace Ui {
 class MainWindow;
@@ -75,6 +77,7 @@ class MainWindow : public QMainWindow {
     bool eventFilter(QObject* obj, QEvent* ev) override;
     void closeEvent(QCloseEvent* event) override;
     void changeEvent(QEvent* event) override;
+    void showEvent(QShowEvent* event) override;
 
     void checkInstancePathForProblems();
 
@@ -228,6 +231,7 @@ class MainWindow : public QMainWindow {
     void setSelectedInstanceById(const QString& id);
     void updateStatusCenter();
     void setInstanceActionsEnabled(bool enabled);
+    void updateResumePanel();
 
     void runModalTask(Task* task);
     void instanceFromInstanceTask(InstanceTask* task);
@@ -244,6 +248,9 @@ class MainWindow : public QMainWindow {
     LabeledToolButton* renameButton = nullptr;
     QToolButton* helpMenuButton = nullptr;
     KonamiCode* secretEventFilter = nullptr;
+    ResumePanel* m_resumePanel = nullptr;
+    ActivityPanel* m_activityPanel = nullptr;
+    bool m_instanceToolBarHidden = false;
 
     unique_qobject_ptr<NewsChecker> m_newsChecker;
 

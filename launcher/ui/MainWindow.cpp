@@ -70,6 +70,7 @@
 #include <QStatusBar>
 #include <QToolBar>
 #include <QToolButton>
+#include <QVBoxLayout>
 #include <QWidget>
 #include <QWidgetAction>
 #include <memory>
@@ -107,12 +108,14 @@
 #include "ui/dialogs/NewsDialog.h"
 #include "ui/dialogs/ProgressDialog.h"
 #include "ui/dialogs/skins/SkinManageDialog.h"
-#include "ui/instanceview/InstanceDelegate.h"
+#include "ui/instanceview/InstanceCardDelegate.h"
 #include "ui/instanceview/InstanceProxyModel.h"
 #include "ui/instanceview/InstanceView.h"
 #include "ui/themes/ITheme.h"
 #include "ui/themes/ThemeManager.h"
+#include "ui/widgets/ActivityPanel.h"
 #include "ui/widgets/LabeledToolButton.h"
+#include "ui/widgets/ResumePanel.h"
 
 #include "minecraft/PackProfile.h"
 #include "minecraft/VersionFile.h"
@@ -290,13 +293,13 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         view = new InstanceView(ui->centralWidget);
 
         view->setSelectionMode(QAbstractItemView::SingleSelection);
-        // FIXME: leaks ListViewDelegate
-        auto delegate = new ListViewDelegate(this);
+        auto delegate = new InstanceCardDelegate(this);
         view->setItemDelegate(delegate);
+        view->setItemWidth(InstanceCardDelegate::cardSize().width());
         view->setFrameShape(QFrame::NoFrame);
         // do not show ugly blue border on the mac
         view->setAttribute(Qt::WA_MacShowFocusRect, false);
-        connect(delegate, &ListViewDelegate::textChanged, this, [this](QString before, QString after) {
+        connect(delegate, &InstanceCardDelegate::textChanged, this, [this](QString before, QString after) {
             if (auto newRoot = askToUpdateInstanceDirName(m_selectedInstance, before, after, this); !newRoot.isEmpty()) {
                 auto oldID = m_selectedInstance->id();
                 auto newID = QFileInfo(newRoot).fileName();
@@ -327,7 +330,43 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         view->setSourceOfGroupCollapseStatus(
             [](const QString& groupName) -> bool { return APPLICATION->instances()->isGroupCollapsed(groupName); });
         connect(view, &InstanceView::groupStateChanged, APPLICATION->instances(), &InstanceList::on_GroupStateChanged);
-        ui->horizontalLayout->addWidget(view);
+    }
+    // Dashboard layout: [ Resume hero / instance cards ] [ Activity ]
+    {
+        ui->horizontalLayout->setContentsMargins(12, 12, 12, 12);
+        ui->horizontalLayout->setSpacing(12);
+
+        auto* left = new QVBoxLayout();
+        left->setSpacing(6);
+        auto* resumeTitle = new QLabel(tr("Resume"), ui->centralWidget);
+        resumeTitle->setForegroundRole(QPalette::Mid);
+        left->addWidget(resumeTitle);
+        m_resumePanel = new ResumePanel(ui->centralWidget);
+        left->addWidget(m_resumePanel);
+        left->addSpacing(6);
+        left->addWidget(view, 1);
+        ui->horizontalLayout->addLayout(left, 1);
+
+        m_activityPanel = new ActivityPanel(ui->centralWidget);
+        ui->horizontalLayout->addWidget(m_activityPanel);
+
+        // the panel may show an instance that is not selected (most recently launched): select it before acting
+        auto viaPanel = [this](QAction* action) {
+            return [this, action] {
+                if (auto* inst = m_resumePanel->instance(); inst && inst != m_selectedInstance)
+                    setSelectedInstanceById(inst->id());
+                action->trigger();
+            };
+        };
+        connect(m_resumePanel, &ResumePanel::launchRequested, this, viaPanel(ui->actionLaunchInstance));
+        connect(m_resumePanel, &ResumePanel::killRequested, this, viaPanel(ui->actionKillInstance));
+        connect(m_resumePanel, &ResumePanel::editRequested, this, viaPanel(ui->actionEditInstance));
+        connect(m_resumePanel, &ResumePanel::folderRequested, this, viaPanel(ui->actionViewSelectedInstFolder));
+        connect(m_resumePanel, &ResumePanel::changeGroupRequested, this, viaPanel(ui->actionChangeInstGroup));
+        connect(m_resumePanel, &ResumePanel::exportRequested, this, viaPanel(ui->actionExportInstance));
+        connect(m_resumePanel, &ResumePanel::copyRequested, this, viaPanel(ui->actionCopyInstance));
+        connect(m_resumePanel, &ResumePanel::deleteRequested, this, viaPanel(ui->actionDeleteInstance));
+        connect(m_resumePanel, &ResumePanel::shortcutRequested, this, viaPanel(ui->actionCreateInstanceShortcut));
     }
     // The cat background
     {
@@ -427,6 +466,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
     connect(ui->actionUndoTrashInstance, &QAction::triggered, this, &MainWindow::undoTrashInstance);
 
     setSelectedInstanceById(APPLICATION->settings()->get("SelectedInstance").toString());
+    updateResumePanel();
 
     // removing this looks stupid
     view->setFocus();
@@ -1700,6 +1740,7 @@ void MainWindow::instanceChanged(const QModelIndex& current, [[maybe_unused]] co
 
         connect(m_selectedInstance, &BaseInstance::runningStatusChanged, this, &MainWindow::refreshCurrentInstance);
         connect(m_selectedInstance, &BaseInstance::profilerChanged, this, &MainWindow::refreshCurrentInstance);
+        updateResumePanel();
     } else {
         APPLICATION->settings()->set("SelectedInstance", QString());
         selectionBad();
@@ -1736,6 +1777,32 @@ void MainWindow::selectionBad()
 
     // ...and then see if we can enable the previously selected instance
     setSelectedInstanceById(APPLICATION->settings()->get("SelectedInstance").toString());
+    updateResumePanel();
+}
+
+void MainWindow::updateResumePanel()
+{
+    auto* instance = m_selectedInstance;
+    if (!instance) {
+        // nothing selected: show the most recently launched instance
+        auto* instances = APPLICATION->instances();
+        for (int i = 0; i < instances->count(); ++i) {
+            auto* candidate = instances->at(i);
+            if (!instance || candidate->lastLaunch() > instance->lastLaunch())
+                instance = candidate;
+        }
+    }
+    m_resumePanel->setInstance(instance);
+}
+
+void MainWindow::showEvent(QShowEvent* event)
+{
+    QMainWindow::showEvent(event);
+    // the dashboard hero replaces the side toolbar; hide it after Application restored the window state
+    if (!m_instanceToolBarHidden) {
+        m_instanceToolBarHidden = true;
+        ui->instanceToolBar->hide();
+    }
 }
 
 void MainWindow::checkInstancePathForProblems()

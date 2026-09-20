@@ -53,6 +53,7 @@ class CustomPage : public QWidget, public BasePage {
     explicit CustomPage(NewInstanceDialog* dialog, QWidget* parent = nullptr);
     ~CustomPage() override;
     QString displayName() const override { return tr("Custom"); }
+    QString description() const override { return tr("Any Minecraft version, optional mod loader"); }
     QIcon icon() const override { return QIcon::fromTheme("minecraft"); }
     QString id() const override { return "vanilla"; }
     QString helpPage() const override { return "Vanilla-platform"; }

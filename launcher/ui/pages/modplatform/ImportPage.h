@@ -53,6 +53,7 @@ class ImportPage : public QWidget, public BasePage {
     explicit ImportPage(NewInstanceDialog* dialog, QWidget* parent = 0);
     virtual ~ImportPage();
     virtual QString displayName() const override { return tr("Import"); }
+    QString description() const override { return tr("From a zip file or a URL"); }
     virtual QIcon icon() const override { return QIcon::fromTheme("viewfolder"); }
     virtual QString id() const override { return "import"; }
     virtual QString helpPage() const override { return "Zip-import"; }

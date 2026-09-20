@@ -46,6 +46,18 @@ QPushButton:disabled, QToolButton:disabled, QComboBox:disabled {
 QPushButton:default {
     border-color: palette(highlight);
 }
+QPushButton#launchButton {
+    background: palette(highlight);
+    color: palette(highlighted-text);
+    border-top-color: palette(light);
+    border-left-color: palette(light);
+    border-bottom-color: palette(shadow);
+    border-right-color: palette(shadow);
+}
+QPushButton#launchButton:hover {
+    background: palette(link);
+    color: palette(window);
+}
 QToolButton[popupMode="1"], QToolButton[popupMode="2"] {
     padding-right: 16px;
 }

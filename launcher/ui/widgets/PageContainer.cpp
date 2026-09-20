@@ -95,7 +95,7 @@ PageContainer::PageContainer(BasePageProvider* pageProvider, QString defaultId, 
         counter++;
         page->updateExtraInfo = [this](const QString& id, const QString& info) {
             if (m_currentPage && id == m_currentPage->id()) {
-                m_header->setText(m_currentPage->displayName() + info);
+                updateHeader(info);
             }
         };
     }
@@ -193,11 +193,24 @@ void PageContainer::createUI()
     setLayout(m_layout);
 }
 
+void PageContainer::updateHeader(const QString& extraInfo)
+{
+    if (!m_currentPage) {
+        m_header->setText(QString());
+        return;
+    }
+    const QString title = m_currentPage->displayName() + extraInfo;
+    if (m_breadcrumbRoot.isEmpty()) {
+        m_header->setText(title);
+    } else {
+        // U+203A "single right-pointing angle quotation mark"
+        m_header->setText(QStringLiteral("%1 %2 %3").arg(m_breadcrumbRoot, QChar(0x203A), title));
+    }
+}
+
 void PageContainer::retranslate()
 {
-    if (m_currentPage) {
-        m_header->setText(m_currentPage->displayName());
-    }
+    updateHeader();
 
     for (auto* page : m_model->pages()) {
         page->retranslate();
@@ -219,6 +232,30 @@ void PageContainer::useSidebarStyle(bool sidebar)
     m_pageList->setProperty("_kde_side_panel_view", sidebar);
 }
 
+void PageContainer::useCardStyle(bool cards)
+{
+    auto* oldDelegate = m_pageList->itemDelegate();
+    if (cards) {
+        m_pageList->setItemDelegate(new PageCardDelegate(m_pageList));
+        m_pageList->setSpacing(4);
+        m_pageList->setUniformItemSizes(true);
+        m_pageList->setMinimumWidth(290);
+    } else {
+        m_pageList->setItemDelegate(new PageViewDelegate(m_pageList));
+        m_pageList->setSpacing(0);
+        m_pageList->setUniformItemSizes(false);
+        m_pageList->setMinimumWidth(0);
+    }
+    delete oldDelegate;
+    m_pageList->updateGeometry();
+}
+
+void PageContainer::setBreadcrumbRoot(const QString& root)
+{
+    m_breadcrumbRoot = root;
+    updateHeader();
+}
+
 void PageContainer::showPage(int row)
 {
     if (m_currentPage) {
@@ -229,13 +266,12 @@ void PageContainer::showPage(int row)
     } else {
         m_currentPage = nullptr;
     }
+    updateHeader();
     if (m_currentPage) {
         m_pageStack->setCurrentIndex(m_currentPage->stackIndex);
-        m_header->setText(m_currentPage->displayName());
         m_currentPage->opened();
     } else {
         m_pageStack->setCurrentIndex(0);
-        m_header->setText(QString());
     }
 }
 

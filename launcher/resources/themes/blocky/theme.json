@@ -16,6 +16,12 @@
         "Link": "#55ff55",
         "ToolTipBase": "#100010",
         "ToolTipText": "#ffffff",
+        "PlaceholderText": "#8f8f8f",
+        "Light": "#b4b4b4",
+        "Midlight": "#8f8f8f",
+        "Mid": "#9a9a9a",
+        "Dark": "#373737",
+        "Shadow": "#101010",
         "fadeColor": "#2b2b2b",
         "fadeAmount": 0.5
     },

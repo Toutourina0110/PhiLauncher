@@ -341,5 +341,12 @@
         <file>scalable/mojang.svg</file>  <!-- The Mojang Logo is a registered trademark of Mojang AB. -->
         <file>scalable/openj9_hex_custom.svg</file>  <!-- Adapted from the `OpenJ9-hex.svg` file by Ludgie. Source: https://github.com/eclipse-openj9/openj9/blob/master/artwork/OpenJ9-hex.svg -->
 
+        <file>scalable/activity.svg</file>
+        <file>scalable/dashboard.svg</file>
+        <file>scalable/group.svg</file>
+        <file>scalable/play-big.svg</file>
+        <file>scalable/import.svg</file>
+        <file>scalable/custom.svg</file>
+        <file>scalable/ftb.svg</file>
     </qresource>
 </RCC>

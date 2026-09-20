@@ -56,6 +56,7 @@ class AccountListPage : public QMainWindow, public BasePage {
     ~AccountListPage();
 
     QString displayName() const override { return tr("Accounts"); }
+    QString description() const override { return tr("Microsoft accounts and skins"); }
     QIcon icon() const override
     {
         auto icon = QIcon::fromTheme("accounts");

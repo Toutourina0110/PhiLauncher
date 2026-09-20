@@ -16,6 +16,9 @@ theme back and forth in Settings > Appearance).
     Link            hyperlinks
     ToolTipBase / ToolTipText   tooltips
     BrightText      errors / warnings accent
+    Light / Dark    bevel edges of buttons and panels (light = top-left, dark = bottom-right)
+    Mid             secondary text (captions, versions, descriptions) and disabled borders
+    Midlight        hover background of buttons
 
 Shapes, borders and the font are in themeStyle.css. Fonts, images or other
 files you reference from the css go in the resources/ folder.

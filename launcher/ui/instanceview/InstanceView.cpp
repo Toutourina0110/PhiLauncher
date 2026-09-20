@@ -258,7 +258,7 @@ QString InstanceView::groupNameAt(const QPoint& point)
 
 int InstanceView::calculateItemsPerRow() const
 {
-    return qFloor((qreal)(contentWidth()) / (qreal)(itemWidth() + m_spacing));
+    return qMax(1, qFloor((qreal)(contentWidth()) / (qreal)(itemWidth() + m_spacing)));
 }
 
 int InstanceView::contentWidth() const

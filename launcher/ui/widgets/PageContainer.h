@@ -63,6 +63,10 @@ class PageContainer : public QWidget, public BasePageContainer {
     void addButtons(QLayout* buttons);
 
     void useSidebarStyle(bool sidebar);
+    /// Show pages as cards (icon, bold title, description) instead of a plain list.
+    void useCardStyle(bool cards);
+    /// When set, the header reads "root > Page title".
+    void setBreadcrumbRoot(const QString& root);
 
     /*
      * Save any unsaved state and prepare to be closed.
@@ -95,6 +99,7 @@ class PageContainer : public QWidget, public BasePageContainer {
    private:
     void createUI();
     void retranslate();
+    void updateHeader(const QString& extraInfo = {});
 
    public slots:
     void help();
@@ -116,4 +121,5 @@ class PageContainer : public QWidget, public BasePageContainer {
     QListView* m_pageList;
     QLabel* m_header;
     QGridLayout* m_layout;
+    QString m_breadcrumbRoot;
 };

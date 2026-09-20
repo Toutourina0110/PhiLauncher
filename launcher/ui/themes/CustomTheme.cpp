@@ -224,6 +224,13 @@ Result<> CustomTheme::read(const QString& path, bool& hasCustomLogColors)
         readAndSetPaletteColor(QPalette::Link, "Link");
         readAndSetPaletteColor(QPalette::Highlight, "Highlight");
         readAndSetPaletteColor(QPalette::HighlightedText, "HighlightedText");
+        readAndSetPaletteColor(QPalette::PlaceholderText, "PlaceholderText");
+        // 3D-effect roles; also drive palette(light|midlight|mid|dark) in stylesheets
+        readAndSetPaletteColor(QPalette::Light, "Light");
+        readAndSetPaletteColor(QPalette::Midlight, "Midlight");
+        readAndSetPaletteColor(QPalette::Mid, "Mid");
+        readAndSetPaletteColor(QPalette::Dark, "Dark");
+        readAndSetPaletteColor(QPalette::Shadow, "Shadow");
 
         // fade
         m_fadeColor = readColor(colorsRoot, "fadeColor");

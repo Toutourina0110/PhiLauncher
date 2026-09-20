@@ -41,6 +41,7 @@ class ImportFTBPage : public QWidget, public ModpackProviderBasePage {
     explicit ImportFTBPage(NewInstanceDialog* dialog, QWidget* parent = 0);
     virtual ~ImportFTBPage();
     QString displayName() const override { return tr("FTB App Import"); }
+    QString description() const override { return tr("Instances from the installed FTB app"); }
     QIcon icon() const override { return QIcon::fromTheme("ftb_logo"); }
     QString id() const override { return "import_ftb"; }
     QString helpPage() const override { return "FTB-import"; }

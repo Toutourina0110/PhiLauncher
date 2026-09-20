@@ -60,6 +60,7 @@ class FlamePage : public QWidget, public ModpackProviderBasePage {
     explicit FlamePage(NewInstanceDialog* dialog, QWidget* parent = 0);
     ~FlamePage() override;
     QString displayName() const override { return "CurseForge"; }
+    QString description() const override { return tr("Modpacks from CurseForge"); }
     QIcon icon() const override { return QIcon::fromTheme("flame"); }
     QString id() const override { return "flame"; }
     QString helpPage() const override { return "Flame-platform"; }

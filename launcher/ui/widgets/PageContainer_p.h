@@ -17,10 +17,12 @@
 
 #include <QEvent>
 #include <QListView>
+#include <QPainter>
 #include <QScrollBar>
 #include <QStyledItemDelegate>
 
-class BasePage;
+#include "ui/pages/BasePage.h"
+
 const int pageIconSize = 24;
 
 class PageViewDelegate : public QStyledItemDelegate {
@@ -36,6 +38,8 @@ class PageViewDelegate : public QStyledItemDelegate {
 
 class PageModel : public QAbstractListModel {
    public:
+    enum Roles { DescriptionRole = Qt::UserRole + 1 };
+
     PageModel(QObject* parent = 0) : QAbstractListModel(parent)
     {
         QPixmap empty(pageIconSize, pageIconSize);
@@ -50,6 +54,8 @@ class PageModel : public QAbstractListModel {
         switch (role) {
             case Qt::DisplayRole:
                 return m_pages.at(index.row())->displayName();
+            case DescriptionRole:
+                return m_pages.at(index.row())->description();
             case Qt::DecorationRole: {
                 QIcon icon = m_pages.at(index.row())->icon();
                 if (icon.isNull())
@@ -80,6 +86,68 @@ class PageModel : public QAbstractListModel {
 
     QList<BasePage*> m_pages;
     QIcon m_emptyIcon;
+};
+
+/// Card look: 32px icon on the left, bold title, one-line description in the mid color below it.
+class PageCardDelegate : public QStyledItemDelegate {
+   public:
+    static constexpr int iconSize = 32;
+    static constexpr int padding = 8;
+
+    PageCardDelegate(QObject* parent) : QStyledItemDelegate(parent) {}
+
+    QSize sizeHint(const QStyleOptionViewItem& /*option*/, const QModelIndex& index) const override
+    {
+        const bool hasDesc = !index.data(PageModel::DescriptionRole).toString().isEmpty();
+        return QSize(280, hasDesc ? 52 : 48);
+    }
+
+    void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override
+    {
+        QStyleOptionViewItem opt = option;
+        initStyleOption(&opt, index);
+        const bool selected = opt.state & QStyle::State_Selected;
+        const QPalette& pal = opt.palette;
+
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing, false);
+        painter->fillRect(opt.rect, selected ? pal.highlight() : pal.alternateBase());
+        painter->setPen(QPen(selected ? pal.highlight().color() : pal.mid().color(), 1));
+        painter->drawRect(opt.rect.adjusted(0, 0, -1, -1));
+
+        const QRect content = opt.rect.adjusted(padding, padding, -padding, -padding);
+        const QRect iconRect(content.left(), content.top() + (content.height() - iconSize) / 2, iconSize, iconSize);
+        opt.icon.paint(painter, iconRect, Qt::AlignCenter, selected ? QIcon::Selected : QIcon::Normal);
+
+        const QString title = index.data(Qt::DisplayRole).toString();
+        const QString desc = index.data(PageModel::DescriptionRole).toString();
+        const int textLeft = iconRect.right() + 1 + padding;
+        const QRect textRect(textLeft, content.top(), content.right() - textLeft + 1, content.height());
+
+        QFont titleFont = opt.font;
+        titleFont.setBold(true);
+        const QFontMetrics titleFm(titleFont);
+        const QFontMetrics descFm(opt.font);
+
+        if (desc.isEmpty()) {
+            painter->setFont(titleFont);
+            painter->setPen(selected ? pal.highlightedText().color() : pal.text().color());
+            painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, titleFm.elidedText(title, Qt::ElideRight, textRect.width()));
+        } else {
+            const int total = titleFm.height() + descFm.height();
+            int y = textRect.top() + (textRect.height() - total) / 2;
+            painter->setFont(titleFont);
+            painter->setPen(selected ? pal.highlightedText().color() : pal.text().color());
+            painter->drawText(QRect(textRect.left(), y, textRect.width(), titleFm.height()), Qt::AlignLeft | Qt::AlignVCenter,
+                              titleFm.elidedText(title, Qt::ElideRight, textRect.width()));
+            y += titleFm.height();
+            painter->setFont(opt.font);
+            painter->setPen(selected ? pal.highlightedText().color() : pal.mid().color());
+            painter->drawText(QRect(textRect.left(), y, textRect.width(), descFm.height()), Qt::AlignLeft | Qt::AlignVCenter,
+                              descFm.elidedText(desc, Qt::ElideRight, textRect.width()));
+        }
+        painter->restore();
+    }
 };
 
 class PageView : public QListView {

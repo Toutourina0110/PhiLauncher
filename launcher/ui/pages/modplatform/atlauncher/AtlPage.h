@@ -56,6 +56,7 @@ class AtlPage : public QWidget, public ModpackProviderBasePage {
     explicit AtlPage(NewInstanceDialog* dialog, QWidget* parent = 0);
     virtual ~AtlPage();
     virtual QString displayName() const override { return "ATLauncher"; }
+    QString description() const override { return tr("Modpacks from ATLauncher"); }
     virtual QIcon icon() const override { return QIcon::fromTheme("atlauncher"); }
     virtual QString id() const override { return "atl"; }
     virtual QString helpPage() const override { return "ATL-platform"; }

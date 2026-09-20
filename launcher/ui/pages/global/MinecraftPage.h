@@ -52,6 +52,7 @@ class MinecraftPage : public MinecraftSettingsWidget, public BasePage {
     ~MinecraftPage() override {}
 
     QString displayName() const override { return tr("Minecraft"); }
+    QString description() const override { return tr("Window size, game time, native libraries"); }
     QIcon icon() const override { return QIcon::fromTheme("minecraft"); }
     QString id() const override { return "minecraft-settings"; }
     QString helpPage() const override { return "Minecraft-settings"; }

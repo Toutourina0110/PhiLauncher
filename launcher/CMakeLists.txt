@@ -1104,6 +1104,10 @@ SET(LAUNCHER_SOURCES
     ui/widgets/CheckComboBox.h
     ui/widgets/StatsCharts.cpp
     ui/widgets/StatsCharts.h
+    ui/widgets/ResumePanel.cpp
+    ui/widgets/ResumePanel.h
+    ui/widgets/ActivityPanel.cpp
+    ui/widgets/ActivityPanel.h
     ui/widgets/Common.cpp
     ui/widgets/Common.h
     ui/widgets/CustomCommands.cpp
@@ -1162,6 +1166,8 @@ SET(LAUNCHER_SOURCES
     ui/instanceview/InstanceView.h
     ui/instanceview/InstanceDelegate.cpp
     ui/instanceview/InstanceDelegate.h
+    ui/instanceview/InstanceCardDelegate.cpp
+    ui/instanceview/InstanceCardDelegate.h
     ui/instanceview/VisualGroup.cpp
     ui/instanceview/VisualGroup.h
 )

@@ -49,6 +49,8 @@ class BasePage {
     virtual QString id() const = 0;
     virtual QString displayName() const = 0;
     virtual QIcon icon() const = 0;
+    /// One-line summary shown under the title when the container uses the card style.
+    virtual QString description() const { return {}; }
     virtual bool apply() { return true; }
     virtual bool shouldDisplay() const { return true; }
     virtual QString helpPage() const { return QString(); }

@@ -60,6 +60,7 @@ class TechnicPage : public QWidget, public ModpackProviderBasePage {
     explicit TechnicPage(NewInstanceDialog* dialog, QWidget* parent = nullptr);
     ~TechnicPage() override;
     QString displayName() const override { return "Technic"; }
+    QString description() const override { return tr("Modpacks from Technic"); }
     QIcon icon() const override { return QIcon::fromTheme("technic"); }
     QString id() const override { return "technic"; }
     QString helpPage() const override { return "Technic-platform"; }

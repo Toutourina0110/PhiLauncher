@@ -42,5 +42,12 @@
         <file>scalable/shortcut.svg</file>
         <file>scalable/server.svg</file>
         <file>scalable/appearance.svg</file>
+        <file>scalable/activity.svg</file>
+        <file>scalable/dashboard.svg</file>
+        <file>scalable/group.svg</file>
+        <file>scalable/play-big.svg</file>
+        <file>scalable/import.svg</file>
+        <file>scalable/custom.svg</file>
+        <file>scalable/stats.svg</file>
     </qresource>
 </RCC>
