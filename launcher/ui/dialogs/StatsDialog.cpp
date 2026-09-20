@@ -28,6 +28,7 @@
 #include <QLocale>
 #include <QScrollArea>
 #include <QTableWidget>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 #include "MMCTime.h"
@@ -78,6 +79,12 @@ StatsDialog::StatsDialog(StatsStore* store, QWidget* parent) : QDialog(parent), 
     m_period->addItem(tr("Last 90 days"), 90);
     m_period->addItem(tr("All time"), 0);
     m_period->setCurrentIndex(1);
+    auto* refreshButton = new QToolButton(dayBox);
+    refreshButton->setIcon(QIcon::fromTheme("refresh"));
+    refreshButton->setText(tr("Refresh"));
+    refreshButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    connect(refreshButton, &QToolButton::clicked, m_store, &StatsStore::refreshNow);
+    periodRow->addWidget(refreshButton);
     periodRow->addStretch();
     periodRow->addWidget(m_period);
     dayLayout->addLayout(periodRow);

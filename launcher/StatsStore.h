@@ -47,6 +47,8 @@ class StatsStore : public QObject {
     void endSession(const QString& instanceId, qint64 durationSeconds);
     /// Seconds of the running session for this instance, 0 when it is not running.
     qint64 activeSeconds(const QString& instanceId) const;
+    /// Recompute running sessions now and notify listeners (manual refresh).
+    void refreshNow() { tick(); }
     void clear();
 
     /// True when load() found no file - caller may import legacy playtime.

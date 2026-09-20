@@ -18,7 +18,9 @@
 #include "ActivityPanel.h"
 
 #include <QFrame>
+#include <QHBoxLayout>
 #include <QLabel>
+#include <QToolButton>
 #include <QLocale>
 #include <QVBoxLayout>
 
@@ -37,9 +39,19 @@ ActivityPanel::ActivityPanel(QWidget* parent) : QWidget(parent)
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(6);
 
+    auto* titleRow = new QHBoxLayout();
+    titleRow->setContentsMargins(0, 0, 0, 0);
     auto* title = new QLabel(tr("Activity"), this);
     title->setForegroundRole(QPalette::Mid);
-    layout->addWidget(title);
+    titleRow->addWidget(title);
+    titleRow->addStretch();
+    auto* refreshButton = new QToolButton(this);
+    refreshButton->setIcon(QIcon::fromTheme("refresh"));
+    refreshButton->setToolTip(tr("Refresh statistics"));
+    refreshButton->setAutoRaise(true);
+    connect(refreshButton, &QToolButton::clicked, APPLICATION->stats(), &StatsStore::refreshNow);
+    titleRow->addWidget(refreshButton);
+    layout->addLayout(titleRow);
 
     auto* box = new QFrame(this);
     box->setFrameShape(QFrame::StyledPanel);
