@@ -2,5 +2,6 @@
 <RCC version="1.0">
     <qresource prefix="/">
         <file>@Launcher_AppID@.svg</file>
+        <file>Minecraft.ttf</file>
     </qresource>
 </RCC>

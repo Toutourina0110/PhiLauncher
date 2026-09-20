@@ -38,6 +38,7 @@
 #include <QAbstractOAuth2>
 #include <QNetworkRequest>
 #include <QNetworkReply>
+#include <QFile>
 #include <QOAuthHttpServerReplyHandler>
 #include <QOAuthOobReplyHandler>
 
@@ -119,13 +120,16 @@ MSAStep::MSAStep(AccountData* data, bool silent) : AuthStep(data), m_silent(sile
     {
         auto replyHandler = new LoggingOAuthHttpServerReplyHandler(this);
         // self-contained page served by the local reply handler; no external redirect
+        QFile fontFile(":/Minecraft.ttf");
+        fontFile.open(QIODevice::ReadOnly);
         replyHandler->setCallbackText(QString(R"XXX(<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>%1</title>
 <style>
-  html,body{height:100%;margin:0;background:#141416;color:#e8e6ee;font:16px/1.5 system-ui,Segoe UI,sans-serif}
+  @font-face{font-family:"Minecraft";src:url(data:font/ttf;base64,%4) format("truetype")}
+  html,body{height:100%;margin:0;background:#141416;color:#e8e6ee;font:18px/1.6 "Minecraft",monospace}
   main{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}
   .phi{font:600 96px/1 Georgia,serif;background:linear-gradient(135deg,#8b3dff,#2a1dff);-webkit-background-clip:text;background-clip:text;color:transparent}
-  h1{margin:16px 0 8px;font-size:22px;font-weight:600}
+  h1{margin:16px 0 8px;font-size:26px;font-weight:400}
   p{margin:0;color:#a8a4b8}
 </style></head>
 <body><main>
@@ -134,7 +138,8 @@ MSAStep::MSAStep(AccountData* data, bool silent) : AuthStep(data), m_silent(sile
   <p>%3</p>
 </main></body></html>)XXX")
                                           .arg(BuildConfig.LAUNCHER_DISPLAYNAME, tr("Login successful"),
-                                               tr("You can close this tab and go back to %1.").arg(BuildConfig.LAUNCHER_DISPLAYNAME)));
+                                               tr("You can close this tab and go back to %1.").arg(BuildConfig.LAUNCHER_DISPLAYNAME),
+                                               QString::fromLatin1(fontFile.readAll().toBase64())));
         m_oauth2.setReplyHandler(replyHandler);
     } else {
         m_oauth2.setReplyHandler(new CustomOAuthOobReplyHandler(this));
