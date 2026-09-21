@@ -12,7 +12,7 @@ Build **Phi Launcher**, a fork of Prism Launcher that is a distinct product rath
 
 ## 2. Current state
 
-Repo: `A:\claude\Iota`, branch **`phi`** (remote `upstream` = PrismLauncher; no `origin` yet). 16 commits on top of upstream `43a67faef`.
+Repo: `A:\claude\Iota`, branch **`phi`**, remote `origin` = https://github.com/Toutourina0110/PhiLauncher (pushed), `upstream` = PrismLauncher. 21 commits on top of upstream `43a67faef`.
 
 Everything below is built and was verified on screen unless noted:
 
@@ -21,7 +21,9 @@ Everything below is built and was verified on screen unless noted:
 - **Theme Blocky**: default theme, seeded as an editable copy in `<data>\themes\blocky\` (`theme.json` colors, `themeStyle.css` shapes, `README.txt`); bundled Minecraft font.
 - **UI**: Resume hero panel, instance cards, Activity column; settings/new-instance page lists as cards with descriptions and a breadcrumb; 3-step wizard (Source tiles → Version & loader → Name & icon).
 - **Auth**: device-code login fixed, self-contained local login page with the Minecraft font.
-- **Phi HUD**: Fabric jars for 1.21.11, 26.1, 26.1.1, 26.1.2, 26.2, 26.3 and a Forge 1.8.9 jar, all building; launcher HUD page (install/update/remove, widget settings, in-game position display + reset); "Install Phi HUD" option in the wizard; jars shipped to `build/Debug/phihud/` by the `phihud_jars` target.
+- **Phi HUD** (Fabric 1.21.11 / 26.1 / 26.1.1 / 26.1.2 / 26.2 / 26.3, Forge 1.8.9): 21 widgets (fps, tps, coords, direction, ping, memory, clock, armor, inventory, keystrokes, cps, speed, biome, gametime, light, target, server, session, effects, hunger, health); Phi title screen (128×128 logo, splash, badge, **Phi HUD** button, also in the pause menu); in-game **Phi HUD menu** (key H): widget list with ON/OFF switches + search, Settings view, per-widget scale/color/background overrides, live preview with drag + snapping; config v2 with read-modify-write on both sides; launcher HUD page (install/update/remove, widget toggles + anchors, "placed in game" display, reset); "Install Phi HUD" option in the wizard; jars shipped to `build/Debug/phihud/` by the `phihud_jars` target.
+- **Appearance**: Prism's stock themes hidden (Blocky + user theme folders only); Settings → Appearance → Phi: UI font family/size, 15-key color grid with presets (Blocky, Phi purple, Light), reset, live apply. Font comes from `theme.json` (`font` block), not the QSS.
+- **Perf**: mod render path allocation-free with tick-cached strings and cached layout; launcher instance cards do no I/O in `paint()`.
 
 Build: `cmake --preset windows_msvc -DCMAKE_PREFIX_PATH=A:/Qt/6.9.3/msvc2022_64 -DENABLE_LTO=OFF` then `cmake --build build --config Debug` (MSVC 2022, Qt 6.9.3, JDK 17 for the Java helper; warnings are errors). Mods: `gradlew build -Pmc=<version>` in `mods/phihud-fabric` (JDK 21), `gradlew build` in `mods/phihud-forge-1.8.9` (JDK 8).
 
@@ -29,7 +31,7 @@ Build: `cmake --preset windows_msvc -DCMAKE_PREFIX_PATH=A:/Qt/6.9.3/msvc2022_64 
 
 None in progress — the tree is clean and the last build is green.
 
-Open item for the user, not a code change: the instance `main` still has the **v1** Phi HUD jar (20 877 B, no editor/title screen). Click **Edit instance → HUD → Update** to get the v2 jar (80 516 B).
+The instance `main` already has the latest Fabric jar (72 168 B) copied in. Nothing pending.
 
 ## 4. Changes made
 
@@ -37,6 +39,10 @@ Commits on `phi`, newest first:
 
 | Commit | What |
 |---|---|
+| `46dd12b9d` | Appearance: no theme.json write before the Phi section loads |
+| `58c7e7881` | 12 more HUD widgets, theme font/color editor, Prism themes hidden, launcher + mod optimizations, StatsStore tests |
+| `0faab1112` | Phi HUD v3: launcher-style mod menu, per-widget overrides, logo fix (region blit bug) |
+| `d71cb9d80` | handoff notes |
 | `6acd917a8` | Phi HUD v2: in-game drag editor (key H, buttons on title/pause menus), Phi title screen (logo, splash, badge), config v2 with per-widget `x`/`y`, mutual key preservation between mod and launcher, `phihud_jars` copy target |
 | `ed8c61f64` | Phi HUD v1: Fabric + Forge mods, `PhiHud` service, HUD instance page, wizard checkbox, Fabric API auto-download from Modrinth |
 | `e6019208c` | Manual refresh buttons for stats |
@@ -62,11 +68,13 @@ Commits on `phi`, newest first:
 - **Tile grid sizing**: three iterations (spacing arithmetic, then IconMode's own cell spacing, then a scrollbar appearing) before the tiles filled the dialog with no leftover gap; the working version uses `spacing(0)`, a delegate-drawn 3 px gap, `vp/(cols|rows)` minus 4 px and `ScrollBarAlwaysOff`.
 - **Fabric Loom 1.18.x**: requires the Gradle JVM itself to be Java 25 — the mod uses Loom 1.17.21 (runs on JDK 21, provisions JDK 25 for compilation).
 - **CMake custom target**: `add_custom_target(phihud_jars ...)` broke configuration because the repo applies `target_compile_options` to every `BUILDSYSTEM_TARGETS`; fixed by skipping `UTILITY` targets.
+- **Title-screen logo drawn huge**: `blit(..., 0, 0, 192, 96, 512, 256)` is a *region* blit (192×96 px of the texture), not a scale; fixed by shipping a 128×128 texture drawn 1:1.
+- **Rate limits** killed several background agents mid-task; resuming them with `SendMessage` kept their context and finished the work.
 - **26.2.1** does not exist upstream (Mojang lists 26.1, 26.1.1, 26.1.2, 26.2, 26.3) — targets adjusted accordingly.
 
 ## 6. Next steps
 
-1. **Test Phi HUD v2 in game** (only the user can): update the jar from the HUD page, check the title screen (logo size/placement, splash, badge), the Phi HUD buttons, the editor's drag/snap feel, and the widgets themselves (TPS estimate, inventory/armor icons). Nothing in v2 was run in a real client.
+1. **Test Phi HUD v4 in game** (only the user can): title screen logo (128 px), Phi HUD menu (H): switches, search, Settings view, drag/snap, per-widget overrides; the 12 new widgets (keystrokes lighting, CPS via `KeyMapping.click` mixin, TPS, effects list, target naming). Nothing past v1 was run in a real client.
 2. **Instance `totalTimePlayed`** stays frozen while the game runs (the status bar figure). Make it live like the Activity column if wanted.
 3. **French strings**: all new UI and the login page are English inside `tr()`; either add translations or hardcode French.
 4. **Icon theme**: the user's is Breeze Dark (monochrome); `pe_colored` carries the new colored icons (activity, dashboard, group, play-big, import, custom, stats).
