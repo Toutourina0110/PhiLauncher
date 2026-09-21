@@ -226,7 +226,39 @@
          <property name="title">
           <string>Widgets</string>
          </property>
-         <layout class="QGridLayout" name="widgetsLayout"/>
+         <layout class="QVBoxLayout" name="widgetsOuterLayout">
+          <item>
+           <widget class="QLabel" name="widgetsHint">
+            <property name="text">
+             <string>Positions set with the in-game editor (H key, or the Phi HUD button in the menus) take precedence over the corner chosen here.</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QGridLayout" name="widgetsLayout"/>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="widgetsButtons">
+            <item>
+             <spacer name="widgetsSpacer">
+              <property name="orientation">
+               <enum>Qt::Orientation::Horizontal</enum>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <widget class="QPushButton" name="resetPositionsButton">
+              <property name="text">
+               <string>Reset in-game positions</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
         </widget>
        </item>
        <item>

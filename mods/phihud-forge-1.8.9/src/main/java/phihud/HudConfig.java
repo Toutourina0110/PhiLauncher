@@ -1,10 +1,16 @@
 package phihud;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.Reader;
+import java.io.Writer;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -20,10 +26,15 @@ public class HudConfig {
     public int margin = 4;
     public Map<String, Widget> widgets = defaultWidgets();
 
+    /** The parsed file as-is; save() patches only the keys the mod owns so unknown keys survive. */
+    public transient JsonObject raw = new JsonObject();
+
     public static class Widget {
         public boolean enabled = true;
         public String anchor = "top-left";
         public int order = 0;
+        /** v2 free position (fractions of the scaled screen, pivot corner); null = anchor stacking. */
+        public Double x, y;
 
         Widget() {}
 
@@ -32,6 +43,8 @@ public class HudConfig {
             this.anchor = anchor;
             this.order = order;
         }
+
+        public boolean free() { return x != null && y != null; }
     }
 
     public static final String[] IDS = {"fps", "tps", "coords", "direction", "ping", "memory", "clock", "armor", "inventory"};
@@ -62,11 +75,16 @@ public class HudConfig {
     /** Parses the file; a missing/unreadable file yields all defaults. Widgets absent from the file get their default. */
     public static HudConfig load(File f) {
         HudConfig c = null;
+        JsonObject raw = null;
         if (f.isFile()) {
             Reader r = null;
             try {
                 r = new FileReader(f);
-                c = new Gson().fromJson(r, HudConfig.class);
+                JsonElement el = new JsonParser().parse(r);
+                if (el.isJsonObject()) {
+                    raw = el.getAsJsonObject();
+                    c = new Gson().fromJson(raw, HudConfig.class);
+                }
             } catch (Exception e) {
                 System.err.println("[phihud] bad config " + f + ": " + e);
             } finally {
@@ -74,6 +92,7 @@ public class HudConfig {
             }
         }
         if (c == null) c = new HudConfig();
+        c.raw = raw != null ? raw : new JsonObject();
         if (c.widgets == null) c.widgets = new LinkedHashMap<String, Widget>();
         for (Map.Entry<String, Widget> d : defaultWidgets().entrySet()) {
             Widget w = c.widgets.get(d.getKey());
@@ -82,5 +101,43 @@ public class HudConfig {
         }
         if (c.scale <= 0) c.scale = 1f;
         return c;
+    }
+
+    /** Read-modify-write: patches version, root enabled and each widget's enabled/x/y into the parsed file. */
+    public void save(File f) {
+        raw.addProperty("version", 2);
+        raw.addProperty("enabled", enabled);
+        JsonObject ws = obj(raw, "widgets");
+        for (Map.Entry<String, Widget> e : widgets.entrySet()) {
+            Widget w = e.getValue();
+            boolean fresh = !ws.has(e.getKey()) || !ws.get(e.getKey()).isJsonObject();
+            JsonObject o = obj(ws, e.getKey());
+            if (fresh) {
+                o.addProperty("anchor", w.anchor);
+                o.addProperty("order", w.order);
+            }
+            o.addProperty("enabled", w.enabled);
+            if (w.free()) { o.addProperty("x", w.x); o.addProperty("y", w.y); }
+            else { o.remove("x"); o.remove("y"); }
+        }
+        Writer wr = null;
+        try {
+            f.getParentFile().mkdirs();
+            wr = new FileWriter(f);
+            new GsonBuilder().setPrettyPrinting().create().toJson(raw, wr);
+        } catch (Exception ex) {
+            System.err.println("[phihud] cannot write " + f + ": " + ex);
+        } finally {
+            if (wr != null) try { wr.close(); } catch (Exception ignored) {}
+        }
+    }
+
+    /** Child object, created (replacing a non-object value) when needed. */
+    private static JsonObject obj(JsonObject parent, String key) {
+        JsonElement el = parent.get(key);
+        if (el != null && el.isJsonObject()) return el.getAsJsonObject();
+        JsonObject o = new JsonObject();
+        parent.add(key, o);
+        return o;
     }
 }

@@ -3,7 +3,9 @@
 	"package": "dev.phi.phihud.mixin",
 	"compatibilityLevel": "JAVA_${java}",
 	"client": [
-		"ClientPacketListenerMixin"
+		"ClientPacketListenerMixin",
+		"LogoRendererMixin",
+		"TitleScreenMixin"
 	],
 	"injectors": { "defaultRequire": 1 }
 }

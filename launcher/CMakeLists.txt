@@ -1356,10 +1356,12 @@ endif()
 file(GLOB PHIHUD_JARS "${CMAKE_SOURCE_DIR}/mods/phihud-fabric/build/libs/phihud-fabric-*.jar"
                       "${CMAKE_SOURCE_DIR}/mods/phihud-forge-1.8.9/build/libs/phihud-forge-*.jar")
 if(PHIHUD_JARS)
-    add_custom_command(TARGET ${Launcher_Name} POST_BUILD
+    # a custom target so the jars are refreshed even when the launcher itself did not change
+    add_custom_target(phihud_jars ALL
         COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${Launcher_Name}>/phihud"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PHIHUD_JARS} "$<TARGET_FILE_DIR:${Launcher_Name}>/phihud"
         COMMENT "Copying Phi HUD jars")
+    add_dependencies(phihud_jars ${Launcher_Name})
     install(FILES ${PHIHUD_JARS} DESTINATION "${BINARY_DEST_DIR}/phihud" COMPONENT Runtime)
 else()
     message(STATUS "No Phi HUD jars found under mods/; build them with gradle to ship the in-game overlay")
@@ -1495,6 +1497,10 @@ endif()
 # Set basic compiler warning/error flags for all targets
 get_property(Launcher_TARGETS DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY BUILDSYSTEM_TARGETS)
 foreach(target ${Launcher_TARGETS})
+    get_target_property(target_type ${target} TYPE)
+    if(target_type STREQUAL "UTILITY")
+        continue()  # custom targets (e.g. copying the Phi HUD jars) take no compile options
+    endif()
     message(STATUS "Enabling all warnings as errors for target '${target}'")
     if (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
         target_compile_options(${target} PRIVATE /W4 /WX /permissive-)

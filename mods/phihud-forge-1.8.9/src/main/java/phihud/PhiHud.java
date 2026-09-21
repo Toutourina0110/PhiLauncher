@@ -5,23 +5,32 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.gui.GuiIngameMenu;
+import net.minecraft.client.gui.GuiMainMenu;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.entity.RenderItem;
+import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.play.server.S03PacketTimeUpdate;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.MathHelper;
+import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.InputEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.common.network.FMLNetworkEvent;
+import org.lwjgl.input.Keyboard;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -29,15 +38,20 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 @Mod(modid = "phihud", name = "Phi HUD", version = "1.0.0", clientSideOnly = true, acceptedMinecraftVersions = "[1.8.9]")
 public class PhiHud {
-    private final Minecraft mc = Minecraft.getMinecraft();
+    private static final ResourceLocation LOGO = new ResourceLocation("phihud", "textures/gui/phi_logo.png");
+    private static final int PHI_BUTTON = 7801;
+
+    final Minecraft mc = Minecraft.getMinecraft();
     private File cfgFile;
     private long cfgMtime = -1, nextPoll;
-    private HudConfig cfg = new HudConfig();
+    HudConfig cfg = new HudConfig();
+    KeyBinding editorKey;
 
     // TPS: wall-clock interval between S03PacketTimeUpdate packets (server sends one every 20 ticks).
     private volatile double tps = -1;
@@ -49,12 +63,24 @@ public class PhiHud {
     public void init(FMLInitializationEvent e) {
         cfgFile = new File(mc.mcDataDir, "config/phihud.json");
         reload();
+        editorKey = new KeyBinding("key.phihud.editor", Keyboard.KEY_H, "key.categories.phihud");
+        ClientRegistry.registerKeyBinding(editorKey);
         MinecraftForge.EVENT_BUS.register(this);
     }
 
     private void reload() {
         cfgMtime = cfgFile.isFile() ? cfgFile.lastModified() : -1;
         cfg = HudConfig.load(cfgFile);
+    }
+
+    /** Writes the config; remembers the mtime so the poll does not reload our own write. */
+    void save() {
+        cfg.save(cfgFile);
+        cfgMtime = cfgFile.isFile() ? cfgFile.lastModified() : -1;
+    }
+
+    void openEditor() {
+        mc.displayGuiScreen(new EditorScreen(this));
     }
 
     @SubscribeEvent
@@ -66,6 +92,46 @@ public class PhiHud {
         long m = cfgFile.isFile() ? cfgFile.lastModified() : -1;
         if (m != cfgMtime) reload();
     }
+
+    @SubscribeEvent
+    public void onKey(InputEvent.KeyInputEvent e) {
+        if (editorKey.isPressed()) openEditor();
+    }
+
+    // ---- title screen / pause menu ----
+
+    @SubscribeEvent
+    public void onInitGui(GuiScreenEvent.InitGuiEvent.Post e) {
+        boolean title = e.gui.getClass() == GuiMainMenu.class;
+        if (!title && e.gui.getClass() != GuiIngameMenu.class) return;
+        GuiButton options = null;
+        for (GuiButton b : e.buttonList) if (b.id == 0) options = b;
+        if (options == null) return;
+        int y = options.yPosition + 24;
+        if (!title) for (GuiButton b : e.buttonList) if (b.yPosition >= y) b.yPosition += 24; // push "Disconnect" down
+        e.buttonList.add(new GuiButton(PHI_BUTTON, e.gui.width / 2 - 100, y, 200, 20, "Phi HUD"));
+    }
+
+    @SubscribeEvent
+    public void onAction(GuiScreenEvent.ActionPerformedEvent.Pre e) {
+        if (e.button.id != PHI_BUTTON) return;
+        e.setCanceled(true);
+        openEditor();
+    }
+
+    @SubscribeEvent
+    public void onDrawScreen(GuiScreenEvent.DrawScreenEvent.Post e) {
+        if (e.gui.getClass() != GuiMainMenu.class) return;
+        // The vanilla logo texture is overridden by a transparent one in this jar; draw the Phi mark in its place.
+        GlStateManager.color(1f, 1f, 1f, 1f);
+        GlStateManager.enableBlend();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+        mc.getTextureManager().bindTexture(LOGO);
+        Gui.drawModalRectWithCustomSizedTexture(e.gui.width / 2 - 72, 14, 0, 0, 144, 72, 144, 72);
+        mc.fontRendererObj.drawStringWithShadow("Phi Launcher", 2, e.gui.height - 20, 0xFFB3A6FF);
+    }
+
+    // ---- TPS ----
 
     @SubscribeEvent
     public void onConnect(FMLNetworkEvent.ClientConnectedToServerEvent e) {
@@ -108,14 +174,73 @@ public class PhiHud {
         lastTotalTime = totalTime;
     }
 
-    // ---- rendering ----
+    // ---- layout ----
 
-    private static final int PAD = 2, LINE = 10, SLOT = 18;
+    static final int PAD = 2, LINE = 10, SLOT = 18;
 
-    private static final class Item {
+    static final class Item {
         final String id, text;
         final int w, h, order;
-        Item(String id, String text, int w, int h, int order) { this.id = id; this.text = text; this.w = w; this.h = h; this.order = order; }
+        final boolean enabled;
+        Item(String id, String text, int w, int h, int order, boolean enabled) {
+            this.id = id; this.text = text; this.w = w; this.h = h; this.order = order; this.enabled = enabled;
+        }
+    }
+
+    /** A placed item: content position; the box is the item size padded by PAD. */
+    static final class Box {
+        final Item item;
+        final int x, y;
+        Box(Item item, int x, int y) { this.item = item; this.x = x; this.y = y; }
+    }
+
+    /** One background box: a free-positioned widget or an anchor stack. */
+    static final class Group {
+        final List<Box> boxes = new ArrayList<Box>();
+        int x, y, w, h;
+    }
+
+    /** Lays out widgets for a W x H scaled screen. all = include disabled widgets (editor). */
+    List<Group> layout(HudConfig c, int W, int H, boolean all) {
+        List<Group> out = new ArrayList<Group>();
+        Map<String, List<Item>> stacks = new LinkedHashMap<String, List<Item>>();
+        for (Map.Entry<String, HudConfig.Widget> e : c.widgets.entrySet()) {
+            HudConfig.Widget w = e.getValue();
+            if (!w.enabled && !all) continue;
+            Item it = make(e.getKey(), w, all);
+            if (it == null) continue;
+            if (w.free()) {
+                Group g = new Group();
+                g.w = it.w + 2 * PAD;
+                g.h = it.h + 2 * PAD;
+                int px = (int) Math.round(w.x * W), py = (int) Math.round(w.y * H);
+                g.x = w.x < 0.5 ? px : px - g.w;
+                g.y = w.y < 0.5 ? py : py - g.h;
+                g.boxes.add(new Box(it, g.x + PAD, g.y + PAD));
+                out.add(g);
+            } else {
+                List<Item> l = stacks.get(w.anchor);
+                if (l == null) stacks.put(w.anchor, l = new ArrayList<Item>());
+                l.add(it);
+            }
+        }
+        for (Map.Entry<String, List<Item>> e : stacks.entrySet()) {
+            List<Item> items = e.getValue();
+            boolean top = e.getKey().startsWith("top"), left = e.getKey().endsWith("left");
+            Collections.sort(items, new Comparator<Item>() {
+                public int compare(Item a, Item b) { return a.order - b.order; }
+            });
+            if (!top) Collections.reverse(items); // bottom anchors stack upward: order 0 nearest the edge
+            Group g = new Group();
+            for (Item it : items) { g.w = Math.max(g.w, it.w); g.h += it.h; }
+            g.w += 2 * PAD; g.h += 2 * PAD;
+            g.x = left ? c.margin : W - c.margin - g.w;
+            g.y = top ? c.margin : H - c.margin - g.h;
+            int cy = g.y + PAD;
+            for (Item it : items) { g.boxes.add(new Box(it, g.x + PAD, cy)); cy += it.h; }
+            out.add(g);
+        }
+        return out;
     }
 
     @SubscribeEvent
@@ -130,52 +255,30 @@ public class PhiHud {
 
         GlStateManager.pushMatrix();
         GlStateManager.scale(s, s, 1f);
-        for (String anchor : new String[]{"top-left", "top-right", "bottom-left", "bottom-right"}) {
-            List<Item> items = new ArrayList<Item>();
-            for (Map.Entry<String, HudConfig.Widget> w : c.widgets.entrySet()) {
-                if (w.getValue().enabled && anchor.equals(w.getValue().anchor)) {
-                    Item it = make(w.getKey(), w.getValue().order);
-                    if (it != null) items.add(it);
-                }
-            }
-            if (items.isEmpty()) continue;
-            boolean top = anchor.startsWith("top"), left = anchor.endsWith("left");
-            Collections.sort(items, new Comparator<Item>() {
-                public int compare(Item a, Item b) { return a.order - b.order; }
-            });
-            if (!top) Collections.reverse(items); // bottom anchors stack upward: order 0 nearest the edge
-            int bw = 0, bh = 0;
-            for (Item it : items) { bw = Math.max(bw, it.w); bh += it.h; }
-            bw += 2 * PAD; bh += 2 * PAD;
-            int x = left ? c.margin : W - c.margin - bw;
-            int y = top ? c.margin : H - c.margin - bh;
+        for (Group g : layout(c, W, H, false)) {
             if (c.background) {
                 int a = MathHelper.clamp_int((int) (c.backgroundOpacity * 255), 0, 255);
-                Gui.drawRect(x, y, x + bw, y + bh, a << 24);
+                Gui.drawRect(g.x, g.y, g.x + g.w, g.y + g.h, a << 24);
                 GlStateManager.color(1f, 1f, 1f, 1f);
             }
-            int cy = y + PAD;
-            for (Item it : items) {
-                draw(it, x + PAD, cy, c);
-                cy += it.h;
-            }
+            for (Box b : g.boxes) draw(b.item, b.x, b.y, c);
         }
         GlStateManager.popMatrix();
     }
 
-    private Item make(String id, int order) {
+    private Item make(String id, HudConfig.Widget w, boolean all) {
+        EntityPlayer p = mc.thePlayer;
         String t;
         if ("fps".equals(id)) t = "FPS: " + Minecraft.getDebugFPS();
         else if ("tps".equals(id)) { double v = tps; t = v < 0 ? "TPS: --" : String.format("TPS: %.1f", v); }
-        else if ("coords".equals(id)) t = String.format("XYZ: %.1f / %.1f / %.1f", mc.thePlayer.posX, mc.thePlayer.posY, mc.thePlayer.posZ);
+        else if ("coords".equals(id)) t = p == null ? "XYZ: --" : String.format("XYZ: %.1f / %.1f / %.1f", p.posX, p.posY, p.posZ);
         else if ("direction".equals(id)) {
-            EntityPlayer p = mc.thePlayer;
-            t = String.format("Facing: %s (%.1f / %.1f)", facing(p.getHorizontalFacing()),
+            t = p == null ? "Facing: --" : String.format("Facing: %s (%.1f / %.1f)", facing(p.getHorizontalFacing()),
                     MathHelper.wrapAngleTo180_float(p.rotationYaw), MathHelper.wrapAngleTo180_float(p.rotationPitch));
         }
         else if ("ping".equals(id)) {
-            NetworkPlayerInfo info = mc.isSingleplayer() || mc.getNetHandler() == null ? null
-                    : mc.getNetHandler().getPlayerInfo(mc.thePlayer.getUniqueID());
+            NetworkPlayerInfo info = p == null || mc.isSingleplayer() || mc.getNetHandler() == null ? null
+                    : mc.getNetHandler().getPlayerInfo(p.getUniqueID());
             t = info == null ? "Ping: --" : "Ping: " + info.getResponseTime() + " ms";
         }
         else if ("memory".equals(id)) {
@@ -184,10 +287,11 @@ public class PhiHud {
             t = String.format("Mem: %d / %d MB (%d%%)", used, max, max == 0 ? 0 : used * 100 / max);
         }
         else if ("clock".equals(id)) t = new SimpleDateFormat("HH:mm").format(new Date());
-        else if ("armor".equals(id)) return new Item(id, null, 5 * SLOT, SLOT, order);
-        else if ("inventory".equals(id)) return new Item(id, null, 9 * SLOT, 3 * SLOT, order);
+        else if ("armor".equals(id)) return new Item(id, null, 5 * SLOT, SLOT, w.order, w.enabled);
+        else if ("inventory".equals(id)) return new Item(id, null, 9 * SLOT, 3 * SLOT, w.order, w.enabled);
         else return null;
-        return new Item(id, t, mc.fontRendererObj.getStringWidth(t), LINE, order);
+        if (all && !w.enabled) t += " (off)";
+        return new Item(id, t, mc.fontRendererObj.getStringWidth(t), LINE, w.order, w.enabled);
     }
 
     private static String facing(EnumFacing f) {
@@ -200,11 +304,12 @@ public class PhiHud {
         }
     }
 
-    private void draw(Item it, int x, int y, HudConfig c) {
+    void draw(Item it, int x, int y, HudConfig c) {
         if (it.text != null) {
             mc.fontRendererObj.drawString(it.text, x, y + 1, c.argb(), c.shadow);
             return;
         }
+        if (mc.thePlayer == null) return; // title-screen editor: empty slots
         ItemStack[] inv = mc.thePlayer.inventory.mainInventory;
         ItemStack[] armor = mc.thePlayer.inventory.armorInventory;
         RenderItem ri = mc.getRenderItem();

@@ -17,6 +17,9 @@
 
 #pragma once
 
+#include <cmath>
+#include <limits>
+
 #include <QMap>
 #include <QString>
 #include <QStringList>
@@ -62,6 +65,10 @@ struct WidgetConfig {
     bool enabled = false;
     QString anchor = "top-left";  // top-left | top-right | bottom-left | bottom-right
     int order = 0;
+    // free position set from the in-game editor (fractions of the screen); NaN = not set
+    double x = std::numeric_limits<double>::quiet_NaN();
+    double y = std::numeric_limits<double>::quiet_NaN();
+    bool hasPosition() const { return !std::isnan(x) && !std::isnan(y); }
 };
 
 struct HudConfig {

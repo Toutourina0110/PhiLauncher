@@ -51,6 +51,7 @@ class PhiHudPage : public QWidget, public BasePage {
     void install();
     void remove();
     void pickColor();
+    void resetPositions();
 
    private:
     void refreshStatus();
@@ -61,6 +62,7 @@ class PhiHudPage : public QWidget, public BasePage {
         QString id;
         QCheckBox* enabled;
         QComboBox* anchor;
+        class QLabel* placed;
     };
 
     Ui::PhiHudPage* m_ui;

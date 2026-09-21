@@ -297,27 +297,47 @@ HudConfig readConfig(MinecraftInstance* inst)
         if (ANCHORS.contains(anchor))
             it->anchor = anchor;
         it->order = w["order"].toInt(it->order);
+        if (w.contains("x") && w.contains("y")) {
+            it->x = w["x"].toDouble();
+            it->y = w["y"].toDouble();
+        }
     }
     return cfg;
 }
 
 bool writeConfig(MinecraftInstance* inst, const HudConfig& cfg)
 {
-    QJsonObject widgets;
-    for (auto it = cfg.widgets.cbegin(); it != cfg.widgets.cend(); ++it)
-        widgets[it.key()] = QJsonObject{ { "enabled", it->enabled }, { "anchor", it->anchor }, { "order", it->order } };
-    QJsonObject root{
-        { "version", 1 },
-        { "enabled", cfg.enabled },
-        { "scale", cfg.scale },
-        { "color", cfg.color },
-        { "background", cfg.background },
-        { "backgroundOpacity", cfg.backgroundOpacity },
-        { "shadow", cfg.shadow },
-        { "margin", cfg.margin },
-        { "widgets", widgets },
-    };
     auto path = configPath(inst);
+    // read-modify-write: the in-game editor owns keys we do not show (and future ones)
+    QJsonObject root;
+    if (QFile::exists(path)) {
+        if (auto existing = Json::requireObject(path, "phihud.json"))
+            root = *existing;
+    }
+    QJsonObject widgets = root["widgets"].toObject();
+    for (auto it = cfg.widgets.cbegin(); it != cfg.widgets.cend(); ++it) {
+        QJsonObject w = widgets[it.key()].toObject();
+        w["enabled"] = it->enabled;
+        w["anchor"] = it->anchor;
+        w["order"] = it->order;
+        if (it->hasPosition()) {
+            w["x"] = it->x;
+            w["y"] = it->y;
+        } else {
+            w.remove("x");
+            w.remove("y");
+        }
+        widgets[it.key()] = w;
+    }
+    root["version"] = 2;
+    root["enabled"] = cfg.enabled;
+    root["scale"] = cfg.scale;
+    root["color"] = cfg.color;
+    root["background"] = cfg.background;
+    root["backgroundOpacity"] = cfg.backgroundOpacity;
+    root["shadow"] = cfg.shadow;
+    root["margin"] = cfg.margin;
+    root["widgets"] = widgets;
     FS::ensureFilePathExists(path);
     if (auto res = Json::write(root, path); !res) {
         qWarning() << "PhiHud: failed to write" << path << res.error();

@@ -80,3 +80,47 @@ screen (F3) is open. `enabled: false` at the root disables everything.
 - New-instance wizard step 3: checkbox "Install Phi HUD (in-game overlay)", visible only when the
   chosen source is Custom/Vanilla with a supported loader+version; checked by default. Installation
   happens after the instance is created.
+
+## v2 — in-game editor and Phi title screen
+
+### Config schema v2 (`"version": 2`)
+
+Each widget may carry a free position set from the in-game editor:
+
+```json
+"fps": { "enabled": true, "anchor": "top-left", "order": 0, "x": 0.02, "y": 0.05 }
+```
+
+- `x`, `y` are fractions (0.0–1.0) of the *scaled* screen size, pointing at the widget's pivot corner.
+  The pivot is chosen from the position: `x < 0.5` → left edge, else right edge; `y < 0.5` → top edge,
+  else bottom edge. This keeps layouts stable across resolutions and GUI scales.
+- When `x`/`y` are absent the widget falls back to v1 anchor stacking (`anchor` + `order`).
+- Widgets with a free position are never stacked; each is drawn at its own spot. Background box is
+  per widget in that case.
+- Snapping: while dragging in the editor, snap to screen edges / center lines within 4 scaled px.
+- Readers must ignore unknown keys and **writers must preserve keys they do not understand**
+  (read-modify-write). The launcher only updates the fields shown in its HUD page and keeps
+  `x`/`y`; the mod only updates `enabled`/`x`/`y` and keeps the rest.
+- `"version": 1` files are accepted as-is (no `x`/`y` → anchor mode).
+
+### In-game editor screen (Fabric and Forge)
+
+- Opened by: keybind **H** (category "Phi HUD", rebindable), the **Phi HUD** button on the title
+  screen and on the pause menu.
+- Shows every widget (enabled or not) as a draggable box with its live content; disabled widgets
+  are drawn at 40% opacity with a "(off)" suffix. Left-drag moves; right-click toggles enabled.
+  Snapping as above. A small toolbar at the bottom: **Reset layout** (removes all `x`/`y`),
+  **Done** (saves + closes), and a checkbox **Show overlay** (root `enabled`).
+- Escape = save + close. The editor saves to `config/phihud.json` immediately on every change
+  (write is cheap) so the launcher page sees it.
+
+### Phi title screen (Fabric and Forge)
+
+- The vanilla logo is replaced by the Phi logo (ship `assets/phihud/textures/gui/phi_logo.png`,
+  the launcher's Φ mark on transparent, ~512×256, drawn centered at the same place/size as the
+  vanilla logo) and the splash text is replaced by a Phi splash ("Powered by Phi Launcher").
+- A **Phi HUD** button is added under the vanilla buttons (same width as "Options", full width
+  row) opening the editor. A small "Phi Launcher" text badge sits bottom-left above the version.
+- The pause menu gets a **Phi HUD** button below "Options…" (same width as that row).
+- Everything else (panorama, buttons, realms, etc.) stays vanilla. Implement with mixins/events on
+  the vanilla screens; do not replace the screen classes.

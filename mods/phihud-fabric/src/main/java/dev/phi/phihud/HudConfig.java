@@ -1,21 +1,30 @@
 package dev.phi.phihud;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** config/phihud.json — see PHIHUD_SPEC.md. Unknown keys/widgets are ignored, missing ones use defaults. */
+/**
+ * config/phihud.json — see PHIHUD_SPEC.md. Unknown keys/widgets are ignored, missing ones use defaults.
+ * Writes are read-modify-write: the parsed file is kept in {@link #raw} and only version / enabled / x / y are patched.
+ */
 public final class HudConfig {
 	public static final class Widget {
 		public Boolean enabled;
 		public String anchor;
 		public Integer order;
+		/** v2 free position (fractions of the scaled screen, pivot = nearest corner); null = anchor stacking. */
+		public Double x, y;
 
 		Widget() {}
 
@@ -24,6 +33,8 @@ public final class HudConfig {
 			this.anchor = anchor;
 			this.order = order;
 		}
+
+		public boolean free() { return x != null && y != null; }
 	}
 
 	public static final Map<String, Widget> DEFAULT_WIDGETS = new LinkedHashMap<>();
@@ -48,6 +59,9 @@ public final class HudConfig {
 	public int margin = 4;
 	public Map<String, Widget> widgets = new LinkedHashMap<>();
 
+	/** The file as parsed (null when there was no file); preserved on save so unknown keys survive. */
+	private transient JsonObject raw;
+
 	/** ARGB text color. */
 	public int argb() {
 		try {
@@ -68,19 +82,20 @@ public final class HudConfig {
 		DEFAULT_WIDGETS.forEach((id, def) -> {
 			Widget w = widgets.get(id);
 			if (w == null) {
-				widgets.put(id, def);
-				return;
+				w = new Widget();
+				widgets.put(id, w);
 			}
 			if (w.enabled == null) w.enabled = def.enabled;
 			if (w.anchor == null) w.anchor = def.anchor;
 			if (w.order == null) w.order = def.order;
+			if (w.x == null || w.y == null) w.x = w.y = null; // half a position is no position
 		});
 		return this;
 	}
 
 	// ---- loading + hot reload ----
 
-	private static final Gson GSON = new Gson();
+	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("phihud.json");
 	private static final long POLL_MS = 2000;
 
@@ -93,25 +108,61 @@ public final class HudConfig {
 		long now = System.currentTimeMillis();
 		if (now - lastPoll < POLL_MS) return current;
 		lastPoll = now;
-		long mtime;
-		try {
-			mtime = Files.getLastModifiedTime(FILE).toMillis();
-		} catch (IOException e) {
-			mtime = 0; // missing file = defaults
-		}
+		long mtime = mtime();
 		if (mtime == lastMtime) return current;
 		lastMtime = mtime;
 		current = mtime == 0 ? new HudConfig().fillDefaults() : load();
 		return current;
 	}
 
+	private static long mtime() {
+		try {
+			return Files.getLastModifiedTime(FILE).toMillis();
+		} catch (IOException e) {
+			return 0; // missing file = defaults
+		}
+	}
+
 	private static HudConfig load() {
 		try (Reader r = Files.newBufferedReader(FILE)) {
-			HudConfig c = GSON.fromJson(r, HudConfig.class);
-			return (c == null ? new HudConfig() : c).fillDefaults();
+			JsonObject raw = JsonParser.parseReader(r).getAsJsonObject();
+			HudConfig c = GSON.fromJson(raw, HudConfig.class).fillDefaults();
+			c.raw = raw;
+			return c;
 		} catch (IOException | RuntimeException e) {
 			PhiHud.LOGGER.warn("[phihud] could not read {}: {}", FILE, e.toString());
 			return new HudConfig().fillDefaults();
+		}
+	}
+
+	/** Patches version 2, root enabled and each widget's enabled/x/y into the file, keeping everything else. */
+	public void save() {
+		JsonObject root = raw != null ? raw : GSON.toJsonTree(this).getAsJsonObject();
+		root.addProperty("version", 2);
+		root.addProperty("enabled", enabled);
+		JsonObject ws = root.get("widgets") instanceof JsonObject o ? o : new JsonObject();
+		root.add("widgets", ws);
+		widgets.forEach((id, w) -> {
+			JsonObject o = ws.get(id) instanceof JsonObject e ? e : new JsonObject();
+			ws.add(id, o);
+			o.addProperty("enabled", w.enabled);
+			if (w.free()) {
+				o.addProperty("x", w.x);
+				o.addProperty("y", w.y);
+			} else {
+				o.remove("x");
+				o.remove("y");
+			}
+		});
+		try {
+			Files.createDirectories(FILE.getParent());
+			try (Writer out = Files.newBufferedWriter(FILE)) {
+				GSON.toJson(root, out);
+			}
+			raw = root;
+			lastMtime = mtime(); // our own write is not a change to re-read
+		} catch (IOException e) {
+			PhiHud.LOGGER.warn("[phihud] could not write {}: {}", FILE, e.toString());
 		}
 	}
 }

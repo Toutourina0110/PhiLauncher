@@ -16,6 +16,10 @@
  */
 
 #include "PhiHudPage.h"
+
+#include <algorithm>
+#include <QLabel>
+#include <limits>
 #include "ui_PhiHudPage.h"
 
 #include <QCheckBox>
@@ -38,9 +42,12 @@ PhiHudPage::PhiHudPage(MinecraftInstance* inst, QWidget* parent) : QWidget(paren
         auto* anchor = new QComboBox(this);
         for (const auto& a : PhiHud::anchors())
             anchor->addItem(PhiHud::anchorName(a), a);
+        auto* placed = new QLabel(m_ui->widgetsGroup);
+        placed->setForegroundRole(QPalette::Mid);
         m_ui->widgetsLayout->addWidget(enabled, row, 0);
         m_ui->widgetsLayout->addWidget(anchor, row, 1);
-        m_rows.append({ id, enabled, anchor });
+        m_ui->widgetsLayout->addWidget(placed, row, 2);
+        m_rows.append({ id, enabled, anchor, placed });
         ++row;
     }
     m_ui->widgetsLayout->setColumnStretch(2, 1);
@@ -49,6 +56,7 @@ PhiHudPage::PhiHudPage(MinecraftInstance* inst, QWidget* parent) : QWidget(paren
     connect(m_ui->updateButton, &QPushButton::clicked, this, &PhiHudPage::install);
     connect(m_ui->removeButton, &QPushButton::clicked, this, &PhiHudPage::remove);
     connect(m_ui->colorButton, &QPushButton::clicked, this, &PhiHudPage::pickColor);
+    connect(m_ui->resetPositionsButton, &QPushButton::clicked, this, &PhiHudPage::resetPositions);
     connect(m_ui->backgroundBox, &QCheckBox::toggled, m_ui->opacitySpin, &QWidget::setEnabled);
 }
 
@@ -146,7 +154,18 @@ void PhiHudPage::load(const PhiHud::HudConfig& cfg)
         const auto w = cfg.widgets.value(r.id);
         r.enabled->setChecked(w.enabled);
         r.anchor->setCurrentIndex(qMax(0, r.anchor->findData(w.anchor)));
+        r.anchor->setEnabled(!w.hasPosition());
+        r.placed->setText(w.hasPosition() ? tr("placed in game (%1%, %2%)").arg(qRound(w.x * 100)).arg(qRound(w.y * 100)) : QString());
     }
+    bool anyPlaced = std::any_of(cfg.widgets.cbegin(), cfg.widgets.cend(), [](const PhiHud::WidgetConfig& w) { return w.hasPosition(); });
+    m_ui->resetPositionsButton->setEnabled(anyPlaced);
+}
+
+void PhiHudPage::resetPositions()
+{
+    for (auto& w : m_loaded.widgets)
+        w.x = w.y = std::numeric_limits<double>::quiet_NaN();
+    load(m_loaded);
 }
 
 PhiHud::HudConfig PhiHudPage::collect() const
