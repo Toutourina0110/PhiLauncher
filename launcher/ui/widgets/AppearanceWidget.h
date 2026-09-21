@@ -72,5 +72,5 @@ class AppearanceWidget : public QWidget {
     QTextCharFormat m_defaultFormat;
     bool m_themesOnly;
     QMap<QString, ColorRow> m_colorRows;
-    bool m_loadingPhi = false;
+    bool m_loadingPhi = true;  // stays true until loadPhiSettings() ran once, so no stray save overwrites theme.json
 };
