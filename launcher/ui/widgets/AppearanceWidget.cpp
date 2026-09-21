@@ -40,6 +40,7 @@
 #include <DesktopServices.h>
 #include <Json.h>
 #include <QColorDialog>
+#include <QTimer>
 #include <QGraphicsOpacityEffect>
 #include <QLineEdit>
 #include <QRegularExpressionValidator>
@@ -120,8 +121,13 @@ AppearanceWidget::AppearanceWidget(bool themesOnly, QWidget* parent)
         updateConsolePreview();
     });
 
-    connect(m_ui->uiFontBox, &QFontComboBox::currentFontChanged, this, [this] { savePhiSettings(); });
-    connect(m_ui->uiFontSizeBox, &QSpinBox::valueChanged, this, [this] { savePhiSettings(); });
+    // re-applying the whole stylesheet is heavy: coalesce rapid changes (font combo, spinbox arrows)
+    m_saveTimer = new QTimer(this);
+    m_saveTimer->setSingleShot(true);
+    m_saveTimer->setInterval(250);
+    connect(m_saveTimer, &QTimer::timeout, this, &AppearanceWidget::savePhiSettings);
+    connect(m_ui->uiFontBox, &QFontComboBox::currentFontChanged, this, [this] { m_saveTimer->start(); });
+    connect(m_ui->uiFontSizeBox, &QSpinBox::valueChanged, this, [this] { m_saveTimer->start(); });
     connect(m_ui->presetBlockyButton, &QPushButton::clicked, this, [this] {
         // the bundled copy holds the defaults; read them from resources so they never drift from theme.json
         auto root = Json::requireObject(QString(":/themes/%1/theme.json").arg(s_editableTheme), "Bundled theme");
@@ -200,7 +206,7 @@ void AppearanceWidget::buildColorGrid()
             if (color.isValid())
                 setSwatchColor(swatch, color);
         });
-        connect(edit, &QLineEdit::editingFinished, this, [this] { savePhiSettings(); });
+        connect(edit, &QLineEdit::editingFinished, this, [this] { m_saveTimer->start(); });
     }
 }
 

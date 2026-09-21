@@ -134,6 +134,7 @@ QLabel* StatsDialog::tile(const QString& title, QWidget* parent)
     f.setPointSize(f.pointSize() + 4);
     f.setBold(true);
     value->setFont(f);
+    value->setProperty("phiFont", "big");
     value->setAlignment(Qt::AlignCenter);
     value->setWordWrap(true);
     auto* l = new QVBoxLayout(box);

@@ -151,7 +151,21 @@ bool CustomTheme::hasStyleSheet()
 
 QString CustomTheme::appStyleSheet()
 {
-    return m_styleSheet;
+    if (!m_font)
+        return m_styleSheet;
+    // a stylesheet font rule reaches every widget on re-polish, including those that set their own
+    // font (bold / larger labels), which QApplication::setFont alone leaves untouched
+    const int base = m_font->pointSize();
+    // widgets tag themselves with the "phiFont" property (big / header) instead of hardcoding sizes,
+    // so a font change from the appearance page keeps titles proportional
+    return QString("QWidget { font-family: \"%1\"; font-size: %2pt; }\n"
+                   "QWidget[phiFont=\"big\"] { font-size: %3pt; font-weight: bold; }\n"
+                   "QWidget[phiFont=\"header\"] { font-size: %4pt; font-weight: bold; }\n")
+               .arg(m_font->family())
+               .arg(base)
+               .arg(base + 4)
+               .arg(base + 2) +
+           m_styleSheet;
 }
 
 double CustomTheme::fadeAmount()

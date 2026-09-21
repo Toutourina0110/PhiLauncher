@@ -100,6 +100,7 @@ QLabel* ActivityPanel::tile(const QString& caption, QWidget* parent)
     f.setPointSize(f.pointSize() + 4);
     f.setBold(true);
     value->setFont(f);
+    value->setProperty("phiFont", "big");
     layout->addWidget(value);
     return value;
 }

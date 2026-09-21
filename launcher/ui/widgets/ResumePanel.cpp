@@ -82,6 +82,7 @@ ResumePanel::ResumePanel(QWidget* parent) : QFrame(parent)
     nameFont.setBold(true);
     nameFont.setPointSize(nameFont.pointSize() + 4);
     m_name->setFont(nameFont);
+    m_name->setProperty("phiFont", "big");
     info->addWidget(m_name);
 
     m_version = new QLabel(m_content);
@@ -133,6 +134,7 @@ ResumePanel::ResumePanel(QWidget* parent) : QFrame(parent)
     QFont launchFont = m_launch->font();
     launchFont.setPointSize(launchFont.pointSize() + 4);
     m_launch->setFont(launchFont);
+    m_launch->setProperty("phiFont", "big");
     m_launch->setMinimumSize(160, 48);
     connect(m_launch, &QPushButton::clicked, this, &ResumePanel::launchRequested);
     actions->addWidget(m_launch);

@@ -59,6 +59,7 @@ class AppearanceWidget : public QWidget {
     void buildColorGrid();
     void loadPhiSettings();
     void savePhiSettings();
+    class QTimer* m_saveTimer = nullptr;
     void applyPreset(const QMap<QString, QString>& colors);
     void resetPhiTheme();
     void pickColor(const QString& key);

@@ -175,6 +175,7 @@ void PageContainer::createUI()
         headerLabelFont.setPointSize(pointSize + 2);
     }
     m_header->setFont(headerLabelFont);
+    m_header->setProperty("phiFont", "header");
 
     auto* headerHLayout = new QHBoxLayout;
     const int leftMargin = APPLICATION->style()->pixelMetric(QStyle::PM_LayoutLeftMargin);
