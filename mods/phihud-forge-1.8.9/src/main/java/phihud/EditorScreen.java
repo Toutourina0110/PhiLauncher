@@ -137,7 +137,7 @@ public class EditorScreen extends GuiScreen {
     private void filter() {
         visible.clear();
         String q = search.getText().trim().toLowerCase();
-        for (String id : mod.cfg.widgets.keySet()) if (id.contains(q)) visible.add(id);
+        for (String id : HudConfig.IDS) if (id.contains(q)) visible.add(id);
         int max = Math.max(0, visible.size() * ROW - (listBottom() - listTop()));
         scroll = Math.max(0, Math.min(max, scroll));
     }
@@ -162,7 +162,7 @@ public class EditorScreen extends GuiScreen {
                 mod.drawBox(g, b, c);
                 if (!b.item.enabled) {
                     drawRect(g.x, b.y0, g.x + g.w, b.y1, 0x99000000);
-                    if (b.item.text == null) fontRendererObj.drawStringWithShadow(b.item.id + " (off)", b.x, b.y + 1, 0xFFFFFF);
+                    if (!b.item.text()) fontRendererObj.drawStringWithShadow(b.item.id + " (off)", b.x, b.y + 1, 0xFFFFFF);
                 }
                 boolean hot = sel || (dragId == null && mx >= g.x && mx < g.x + g.w && my >= b.y0 && my < b.y1);
                 if (hot) outline(g.x, b.y0, g.x + g.w, b.y1, sel ? 0xFFB3A6FF : 0x80FFFFFF);

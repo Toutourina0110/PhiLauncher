@@ -38,7 +38,12 @@
 #include "ui_AppearanceWidget.h"
 
 #include <DesktopServices.h>
+#include <Json.h>
+#include <QColorDialog>
 #include <QGraphicsOpacityEffect>
+#include <QLineEdit>
+#include <QRegularExpressionValidator>
+#include <QToolButton>
 #include "BuildConfig.h"
 #include "ui/themes/ITheme.h"
 #include "ui/themes/ThemeManager.h"
@@ -46,10 +51,31 @@
 #include <Application.h>
 #include "settings/SettingsObject.h"
 
+// theme.json palette keys exposed in the "Phi" color grid, in display order
+static const QStringList s_paletteKeys = { "Window", "WindowText", "Base",     "AlternateBase", "Text",
+                                           "Button", "ButtonText", "Highlight", "HighlightedText", "Link",
+                                           "Light",  "Midlight",   "Mid",      "Dark",          "PlaceholderText" };
+
+static const QString s_editableTheme = QStringLiteral("blocky");
+
+static QString themeJsonPath()
+{
+    return APPLICATION->themeManager()->getApplicationThemesFolder().filePath(QString("%1/theme.json").arg(s_editableTheme));
+}
+
+static void setSwatchColor(QToolButton* swatch, const QColor& color)
+{
+    QPixmap pixmap(16, 16);
+    pixmap.fill(color);
+    swatch->setIcon(QIcon(pixmap));
+    swatch->setToolTip(color.name());
+}
+
 AppearanceWidget::AppearanceWidget(bool themesOnly, QWidget* parent)
     : QWidget(parent), m_ui(new Ui::AppearanceWidget), m_themesOnly(themesOnly)
 {
     m_ui->setupUi(this);
+    buildColorGrid();
 
     connect(m_ui->enableCatCheckBox, &QCheckBox::toggled, m_ui->catSettingsBox, &QWidget::setEnabled);
 
@@ -61,6 +87,7 @@ AppearanceWidget::AppearanceWidget(bool themesOnly, QWidget* parent)
         m_ui->catPackLabel->hide();
         m_ui->catPackComboBox->hide();
         m_ui->catPackFolder->hide();
+        m_ui->phiBox->hide();
         m_ui->settingsBox->hide();
         m_ui->consolePreview->hide();
         m_ui->catPreview->hide();
@@ -87,7 +114,178 @@ AppearanceWidget::AppearanceWidget(bool themesOnly, QWidget* parent)
             [] { DesktopServices::openPath(APPLICATION->themeManager()->getApplicationThemesFolder().path()); });
     connect(m_ui->catPackFolder, &QPushButton::clicked, this,
             [] { DesktopServices::openPath(APPLICATION->themeManager()->getCatPacksFolder().path()); });
-    connect(m_ui->reloadThemesButton, &QPushButton::pressed, this, &AppearanceWidget::loadThemeSettings);
+    connect(m_ui->reloadThemesButton, &QPushButton::pressed, this, [this] {
+        loadThemeSettings();
+        APPLICATION->themeManager()->applyCurrentlySelectedTheme();
+        updateConsolePreview();
+    });
+
+    connect(m_ui->uiFontBox, &QFontComboBox::currentFontChanged, this, [this] { savePhiSettings(); });
+    connect(m_ui->uiFontSizeBox, &QSpinBox::valueChanged, this, [this] { savePhiSettings(); });
+    connect(m_ui->presetBlockyButton, &QPushButton::clicked, this, [this] {
+        // the bundled copy holds the defaults; read them from resources so they never drift from theme.json
+        auto root = Json::requireObject(QString(":/themes/%1/theme.json").arg(s_editableTheme), "Bundled theme");
+        if (!root)
+            return;
+        QMap<QString, QString> colors;
+        const auto colorsObj = (*root)["colors"].toObject();
+        for (auto it = colorsObj.begin(); it != colorsObj.end(); ++it)
+            if (it->isString())
+                colors[it.key()] = it->toString();
+        applyPreset(colors);
+    });
+    connect(m_ui->presetPurpleButton, &QPushButton::clicked, this, [this] {
+        applyPreset({ { "Window", "#1e1e24" },
+                      { "WindowText", "#e8e6f0" },
+                      { "Base", "#16161c" },
+                      { "AlternateBase", "#1c1c22" },
+                      { "Text", "#e8e6f0" },
+                      { "Button", "#3a3a4a" },
+                      { "ButtonText", "#ffffff" },
+                      { "Highlight", "#6d4cff" },
+                      { "HighlightedText", "#ffffff" },
+                      { "Link", "#a78bfa" },
+                      { "Light", "#6e6e82" },
+                      { "Midlight", "#4a4a5c" },
+                      { "Mid", "#7a7a8e" },
+                      { "Dark", "#111116" },
+                      { "PlaceholderText", "#8a8aa0" },
+                      { "fadeColor", "#1e1e24" } });
+    });
+    connect(m_ui->presetLightButton, &QPushButton::clicked, this, [this] {
+        applyPreset({ { "Window", "#f2f0f4" },
+                      { "WindowText", "#1f1b2e" },
+                      { "Base", "#ffffff" },
+                      { "AlternateBase", "#f7f5f9" },
+                      { "Text", "#1f1b2e" },
+                      { "Button", "#e6e2ec" },
+                      { "ButtonText", "#1f1b2e" },
+                      { "Highlight", "#3a8f3a" },
+                      { "HighlightedText", "#ffffff" },
+                      { "Link", "#2f6f2f" },
+                      { "Light", "#ffffff" },
+                      { "Midlight", "#d6d2dc" },
+                      { "Mid", "#8a8494" },
+                      { "Dark", "#a8a2b2" },
+                      { "PlaceholderText", "#8a8494" },
+                      { "fadeColor", "#f2f0f4" } });
+    });
+    connect(m_ui->resetThemeButton, &QPushButton::clicked, this, &AppearanceWidget::resetPhiTheme);
+}
+
+void AppearanceWidget::buildColorGrid()
+{
+    auto* validator = new QRegularExpressionValidator(QRegularExpression("#[0-9a-fA-F]{6}"), this);
+    const int rowsPerColumn = static_cast<int>((s_paletteKeys.size() + 1) / 2);
+    for (int i = 0; i < static_cast<int>(s_paletteKeys.size()); ++i) {
+        const QString key = s_paletteKeys[i];
+        auto* label = new QLabel(key, this);
+        auto* swatch = new QToolButton(this);
+        swatch->setToolTip(tr("Pick a color"));
+        auto* edit = new QLineEdit(this);
+        edit->setValidator(validator);
+        edit->setMaxLength(7);
+        edit->setPlaceholderText("#rrggbb");
+
+        const int row = i % rowsPerColumn;
+        const int column = (i / rowsPerColumn) * 3;
+        m_ui->colorGrid->addWidget(label, row, column);
+        m_ui->colorGrid->addWidget(swatch, row, column + 1);
+        m_ui->colorGrid->addWidget(edit, row, column + 2);
+        m_colorRows.insert(key, { swatch, edit });
+
+        connect(swatch, &QToolButton::clicked, this, [this, key] { pickColor(key); });
+        connect(edit, &QLineEdit::textChanged, this, [swatch](const QString& text) {
+            QColor color(text);
+            if (color.isValid())
+                setSwatchColor(swatch, color);
+        });
+        connect(edit, &QLineEdit::editingFinished, this, [this] { savePhiSettings(); });
+    }
+}
+
+void AppearanceWidget::loadPhiSettings()
+{
+    auto root = Json::requireObject(themeJsonPath(), "Blocky theme");
+    m_ui->phiBox->setEnabled(root.has_value());
+    if (!root) {
+        themeWarningLog() << "Couldn't read theme json for the Phi section:" << root.error();
+        return;
+    }
+
+    m_loadingPhi = true;
+    const auto fontObj = (*root)["font"].toObject();
+    const QString family = fontObj["family"].toString();
+    m_ui->uiFontBox->setCurrentFont(family.isEmpty() ? QApplication::font() : QFont(family));
+    m_ui->uiFontSizeBox->setValue(fontObj["pointSize"].toInt(QApplication::font().pointSize()));
+
+    const auto colors = (*root)["colors"].toObject();
+    for (auto it = m_colorRows.begin(); it != m_colorRows.end(); ++it) {
+        QColor color(colors[it.key()].toString());
+        it->edit->setText(color.isValid() ? color.name() : QString());
+        setSwatchColor(it->swatch, color.isValid() ? color : QColor(Qt::transparent));
+    }
+    m_loadingPhi = false;
+}
+
+void AppearanceWidget::savePhiSettings()
+{
+    if (m_loadingPhi)
+        return;
+    applyPreset({});
+}
+
+/// Writes the given colors plus everything in the grid and the font row into theme.json, then re-applies the theme.
+void AppearanceWidget::applyPreset(const QMap<QString, QString>& colors)
+{
+    const QString path = themeJsonPath();
+    auto root = Json::requireObject(path, "Blocky theme");
+    if (!root) {
+        themeWarningLog() << "Couldn't read theme json:" << root.error();
+        return;
+    }
+
+    m_loadingPhi = true;
+    for (auto it = colors.begin(); it != colors.end(); ++it) {
+        if (m_colorRows.contains(it.key()))
+            m_colorRows[it.key()].edit->setText(it.value());
+    }
+    m_loadingPhi = false;
+
+    auto colorsObj = (*root)["colors"].toObject();
+    for (auto it = colors.begin(); it != colors.end(); ++it)
+        colorsObj[it.key()] = it.value();
+    for (auto it = m_colorRows.begin(); it != m_colorRows.end(); ++it) {
+        QColor color(it->edit->text());
+        if (color.isValid())
+            colorsObj[it.key()] = color.name();
+    }
+    (*root)["colors"] = colorsObj;
+    (*root)["font"] = QJsonObject{ { "family", m_ui->uiFontBox->currentFont().family() }, { "pointSize", m_ui->uiFontSizeBox->value() } };
+
+    if (auto res = Json::write(*root, path); !res) {
+        themeWarningLog() << "Couldn't write theme json:" << res.error();
+        return;
+    }
+    APPLICATION->themeManager()->reloadTheme(s_editableTheme);
+    updateConsolePreview();
+}
+
+void AppearanceWidget::resetPhiTheme()
+{
+    APPLICATION->themeManager()->resetBundledTheme(s_editableTheme);
+    loadPhiSettings();
+    updateConsolePreview();
+}
+
+void AppearanceWidget::pickColor(const QString& key)
+{
+    auto& row = m_colorRows[key];
+    auto color = QColorDialog::getColor(QColor(row.edit->text()), this, tr("Color for %1").arg(key));
+    if (!color.isValid())
+        return;
+    row.edit->setText(color.name());
+    savePhiSettings();
 }
 
 AppearanceWidget::~AppearanceWidget()
@@ -232,6 +430,9 @@ void AppearanceWidget::loadThemeSettings()
     m_ui->iconsComboBox->blockSignals(false);
     m_ui->widgetStyleComboBox->blockSignals(false);
     m_ui->catPackComboBox->blockSignals(false);
+
+    if (!m_themesOnly)
+        loadPhiSettings();
 }
 
 void AppearanceWidget::updateConsolePreview()

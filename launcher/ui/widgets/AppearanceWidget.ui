@@ -16,7 +16,7 @@
     <height>0</height>
    </size>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0">
    <item>
     <widget class="QGroupBox" name="themingBox">
      <property name="title">
@@ -130,6 +130,132 @@
           </property>
          </widget>
         </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="phiBox">
+     <property name="title">
+      <string>Phi</string>
+     </property>
+     <property name="toolTip">
+      <string>Font and colors of the Blocky theme. Changes are saved to themes/blocky/theme.json and applied immediately.</string>
+     </property>
+     <layout class="QVBoxLayout" name="phiLayout">
+      <item>
+       <layout class="QHBoxLayout" name="uiFontLayout">
+        <item>
+         <widget class="QLabel" name="uiFontLabel">
+          <property name="text">
+           <string>UI Font:</string>
+          </property>
+          <property name="buddy">
+           <cstring>uiFontBox</cstring>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QFontComboBox" name="uiFontBox"/>
+        </item>
+        <item>
+         <widget class="QSpinBox" name="uiFontSizeBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="suffix">
+           <string> pt</string>
+          </property>
+          <property name="minimum">
+           <number>6</number>
+          </property>
+          <property name="maximum">
+           <number>16</number>
+          </property>
+          <property name="value">
+           <number>8</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="uiFontSpacer">
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>0</width>
+            <height>0</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="presetsLayout">
+        <item>
+         <widget class="QLabel" name="presetsLabel">
+          <property name="text">
+           <string>Presets:</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="presetBlockyButton">
+          <property name="text">
+           <string>Blocky (default)</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="presetPurpleButton">
+          <property name="text">
+           <string>Phi purple</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="presetLightButton">
+          <property name="text">
+           <string>Light</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="presetsSpacer">
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>0</width>
+            <height>0</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QPushButton" name="resetThemeButton">
+          <property name="toolTip">
+           <string>Delete your edits to the Blocky theme and restore the bundled copy.</string>
+          </property>
+          <property name="text">
+           <string>Reset to defaults</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QGridLayout" name="colorGrid">
+        <property name="horizontalSpacing">
+         <number>8</number>
+        </property>
        </layout>
       </item>
      </layout>
@@ -640,6 +766,12 @@
   <tabstop>catPackComboBox</tabstop>
   <tabstop>catPackFolder</tabstop>
   <tabstop>reloadThemesButton</tabstop>
+  <tabstop>uiFontBox</tabstop>
+  <tabstop>uiFontSizeBox</tabstop>
+  <tabstop>presetBlockyButton</tabstop>
+  <tabstop>presetPurpleButton</tabstop>
+  <tabstop>presetLightButton</tabstop>
+  <tabstop>resetThemeButton</tabstop>
   <tabstop>consoleFont</tabstop>
   <tabstop>fontSizeBox</tabstop>
   <tabstop>enableCatCheckBox</tabstop>

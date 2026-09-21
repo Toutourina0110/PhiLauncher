@@ -1,11 +1,7 @@
 /* Blocky - Minecraft GUI look for Phi Launcher.
-   Every color comes from the palette in theme.json (palette(role)), so edit
-   that file to recolor. This file only defines shapes, bevels and the font. */
-
-QWidget {
-    font-family: "Minecraft";
-    font-size: 8pt;
-}
+   Every color comes from the palette in theme.json (palette(role)) and the UI
+   font from its "font" block, so edit that file to recolor or change the font.
+   This file only defines shapes and bevels. */
 
 QMainWindow, QDialog, QWizard, QWidget#centralWidget {
     background: palette(window);

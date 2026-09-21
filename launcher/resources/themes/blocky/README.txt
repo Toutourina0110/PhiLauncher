@@ -1,8 +1,14 @@
 Blocky theme for Phi Launcher
 =============================
 
-Colors live in theme.json. Edit them and restart the launcher (or switch
-theme back and forth in Settings > Appearance).
+The easiest way to edit this theme is Settings > Appearance > Phi: pick the
+UI font and size, click a color swatch (or type a hex value) and the launcher
+updates live. The Presets buttons fill in a whole palette at once, and
+"Reset to defaults" restores the bundled copy of this folder. Everything on
+that page is written back to theme.json, so hand-editing works too: edit the
+file and press "Reload All" in Settings > Appearance (or restart).
+
+Colors live under "colors" in theme.json:
 
     Window          background of windows and panels
     WindowText      text on windows
@@ -16,12 +22,20 @@ theme back and forth in Settings > Appearance).
     Link            hyperlinks
     ToolTipBase / ToolTipText   tooltips
     BrightText      errors / warnings accent
+    PlaceholderText placeholder text in empty fields
     Light / Dark    bevel edges of buttons and panels (light = top-left, dark = bottom-right)
     Mid             secondary text (captions, versions, descriptions) and disabled borders
     Midlight        hover background of buttons
 
-Shapes, borders and the font are in themeStyle.css. Fonts, images or other
-files you reference from the css go in the resources/ folder.
+The UI font is the optional "font" block:
 
-To go back to the stock look, delete this folder: the launcher recreates it
-on the next start.
+    "font": { "family": "Minecraft", "pointSize": 8 }
+
+Leave it out to use the system font. The Minecraft font ships with the
+launcher; any other family installed on the system works as well.
+
+Shapes and borders are in themeStyle.css. Fonts, images or other files you
+reference from the css go in the resources/ folder.
+
+To go back to the stock look, use "Reset to defaults" in Settings > Appearance
+or delete this folder: the launcher recreates it on the next start.

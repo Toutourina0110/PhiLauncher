@@ -49,6 +49,8 @@ class ResumePanel : public QFrame {
 
    private:
     void refresh();
+    /// Only the "Playing for" line and the buttons that depend on running state (called every StatsStore tick).
+    void refreshPlaytime();
 
     MinecraftInstance* m_instance = nullptr;
 

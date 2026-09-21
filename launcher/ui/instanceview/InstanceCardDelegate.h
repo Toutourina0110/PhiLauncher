@@ -17,17 +17,23 @@
 
 #pragma once
 
+#include <QHash>
+#include <QPointer>
+#include <QSet>
 #include <QSize>
 #include <QString>
 
 #include "InstanceDelegate.h"
 
 class MinecraftInstance;
+class QAbstractItemView;
 
-/// Minecraft version of the instance ("1.21.1"), loading the pack profile offline if needed.
+/// Minecraft version of the instance ("1.21.1"); empty while the pack profile is not loaded.
 QString instanceMinecraftVersion(MinecraftInstance* instance);
 /// Display name of the instance's mod loader ("Fabric"), or "Vanilla".
 QString instanceLoaderName(MinecraftInstance* instance);
+/// Loads the pack profile offline if it has not been loaded yet. Does file I/O: never call from paint().
+void ensureProfileLoaded(MinecraftInstance* instance);
 
 /// Paints an instance as a wide card: icon, bold name, "version - loader - playtime".
 /// Inherits the rename editor from ListViewDelegate.
@@ -42,4 +48,12 @@ class InstanceCardDelegate : public ListViewDelegate {
     void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
     QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override;
     void updateEditorGeometry(QWidget* editor, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
+
+   private:
+    /// "version · loader" for the card, cached per instance id; never does I/O (unloaded profiles load on the event loop).
+    QString details(MinecraftInstance* instance, const QWidget* view) const;
+
+    mutable QHash<QString, QString> m_details;
+    mutable QSet<QString> m_watched;  // instance ids whose change signals invalidate m_details
+    mutable QPointer<const QAbstractItemView> m_view;
 };

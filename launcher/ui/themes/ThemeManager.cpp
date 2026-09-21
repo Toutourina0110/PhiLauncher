@@ -48,6 +48,7 @@ ThemeManager::ThemeManager()
     themeDebugLog() << "System theme seems to be:" << m_defaultStyle;
 
     m_defaultPalette = QApplication::palette();
+    m_defaultFont = QApplication::font();
 
     initializeThemes();
     initializeCatPacks();
@@ -205,6 +206,28 @@ void ThemeManager::seedBundledTheme(const QString& id)
     themeDebugLog() << "Seeded bundled theme" << id << "into" << target.path();
 }
 
+void ThemeManager::reloadTheme(const QString& id)
+{
+    QFileInfo themeJson(m_applicationThemeFolder.filePath(id + "/theme.json"));
+    if (!themeJson.exists()) {
+        themeWarningLog() << "Can't reload theme without theme.json:" << id;
+        return;
+    }
+    themeDebugLog() << "Reloading JSON Theme from:" << themeJson.absoluteFilePath();
+    m_themes[id] = std::make_unique<CustomTheme>(getTheme("dark"), themeJson, true);
+    if (APPLICATION->settings()->get("ApplicationTheme").toString() == id)
+        setApplicationTheme(id);
+}
+
+void ThemeManager::resetBundledTheme(const QString& id)
+{
+    QDir target(m_applicationThemeFolder.filePath(id));
+    if (target.exists() && !target.removeRecursively())
+        themeWarningLog() << "Couldn't remove theme folder" << target.path();
+    seedBundledTheme(id);
+    reloadTheme(id);
+}
+
 #ifndef Q_OS_MACOS
 void ThemeManager::setTitlebarColorOnMac(WId windowId, QColor color) {}
 void ThemeManager::setTitlebarColorOfAllWindowsOnMac(QColor color) {}
@@ -221,12 +244,15 @@ QList<IconTheme*> ThemeManager::getValidIconThemes()
     return ret;
 }
 
+/// Only themes from the user's themes folder (Blocky and any custom ones) are offered; the stock
+/// Prism themes and Qt styles stay registered internally as base palettes but are not selectable.
 QList<ITheme*> ThemeManager::getValidApplicationThemes()
 {
     QList<ITheme*> ret;
     ret.reserve(m_themes.size());
     for (auto&& [id, theme] : m_themes) {
-        ret.append(theme.get());
+        if (dynamic_cast<CustomTheme*>(theme.get()))
+            ret.append(theme.get());
     }
     return ret;
 }
@@ -283,6 +309,8 @@ void ThemeManager::setApplicationTheme(const QString& name, bool initial)
     if (themeIter != m_themes.end()) {
         auto& theme = themeIter->second;
         themeDebugLog() << "applying theme" << theme->name();
+        // font first: widgets polished by the stylesheet resolve their font at polish time
+        QApplication::setFont(theme->font().value_or(m_defaultFont));
         theme->apply(initial);
         setTitlebarColorOfAllWindowsOnMac(qApp->palette().window().color());
 
@@ -298,8 +326,12 @@ void ThemeManager::applyCurrentlySelectedTheme(bool initial)
     setIconTheme(settings->get("IconTheme").toString());
     themeDebugLog() << "<> Icon theme set.";
     auto applicationTheme = settings->get("ApplicationTheme").toString();
-    if (applicationTheme == "") {
-        applicationTheme = m_defaultStyle;
+    // stock Prism themes and Qt styles are hidden from the user; fall back to Blocky if one is still saved
+    auto themeIter = m_themes.find(applicationTheme);
+    if (themeIter == m_themes.end() || !dynamic_cast<CustomTheme*>(themeIter->second.get())) {
+        themeDebugLog() << "Theme" << applicationTheme << "is not selectable, falling back to blocky";
+        applicationTheme = "blocky";
+        settings->set("ApplicationTheme", applicationTheme);
     }
     setApplicationTheme(applicationTheme, initial);
     themeDebugLog() << "<> Application theme set.";

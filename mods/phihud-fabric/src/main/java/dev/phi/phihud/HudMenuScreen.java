@@ -28,9 +28,13 @@ import java.util.function.DoubleConsumer;
  */
 public abstract class HudMenuScreen extends Screen {
 	static final int PANEL = 140, SNAP = 4, ROW = 16;
-	private static final Map<String, String> NAMES = Map.of(
-		"fps", "FPS", "tps", "TPS", "coords", "Coordinates", "direction", "Direction", "ping", "Ping",
-		"memory", "Memory", "clock", "Clock", "armor", "Armor", "inventory", "Inventory");
+	private static final Map<String, String> NAMES = Map.ofEntries(
+		Map.entry("fps", "FPS"), Map.entry("tps", "TPS"), Map.entry("coords", "Coordinates"), Map.entry("direction", "Direction"),
+		Map.entry("ping", "Ping"), Map.entry("memory", "Memory"), Map.entry("clock", "Clock"), Map.entry("armor", "Armor"),
+		Map.entry("inventory", "Inventory"), Map.entry("keystrokes", "Keystrokes"), Map.entry("cps", "CPS"), Map.entry("speed", "Speed"),
+		Map.entry("biome", "Biome"), Map.entry("gametime", "Game time"), Map.entry("light", "Light"), Map.entry("target", "Target"),
+		Map.entry("server", "Server"), Map.entry("session", "Session"), Map.entry("effects", "Effects"), Map.entry("hunger", "Hunger"),
+		Map.entry("health", "Health"));
 
 	private final Screen parent;
 	private String selected;    // widget shown in the per-widget block, null = none
@@ -172,12 +176,12 @@ public abstract class HudMenuScreen extends Screen {
 	private float previewX() { return PANEL + 6 + (width - PANEL - 12 - width * previewScale()) / 2; }
 	private float previewY() { return 6 + (height - 12 - height * previewScale()) / 2; }
 
-	private List<Group> groups() { return HudRenderer.layout(cfg(), font, width, height, selected); }
+	private Group[] groups() { return HudRenderer.layout(cfg(), font, width, height, selected); }
 
 	private Placed find(double sx, double sy) {
-		List<Group> groups = groups();
-		for (int i = groups.size() - 1; i >= 0; i--) // topmost (drawn last) wins
-			for (Placed p : groups.get(i).items())
+		Group[] groups = groups();
+		for (int i = groups.length - 1; i >= 0; i--) // topmost (drawn last) wins
+			for (Placed p : groups[i].items())
 				if (p.contains(sx, sy)) return p;
 		return null;
 	}

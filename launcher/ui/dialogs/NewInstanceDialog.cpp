@@ -218,6 +218,8 @@ void NewInstanceDialog::reject()
 
 void NewInstanceDialog::accept()
 {
+    if (!m_creationTask || instName().isEmpty())
+        return;  // nothing to create yet (Enter on a step with no version picked)
     auto chosenDir = instDir();
     if (!QDir(chosenDir).exists()) {
         CustomMessageBox::selectable(
@@ -368,6 +370,8 @@ void NewInstanceDialog::setSuggestedIcon(const QString& key)
 InstanceTask* NewInstanceDialog::extractTask()
 {
     InstanceTask* extracted = m_creationTask.release();
+    if (!extracted)
+        return nullptr;
 
     extracted->setName(ui->instNameTextBox->text().trimmed());
     extracted->setOriginalName(m_suggestedName.trimmed(), m_importVersion);

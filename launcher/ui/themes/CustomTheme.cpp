@@ -186,6 +186,18 @@ Result<> CustomTheme::read(const QString& path, bool& hasCustomLogColors)
     TRY_INTO(m_widgets, Json::requireString(root, "widgets", "Qt widget theme"))
     m_qssFilePath = root["qssFilePath"].toString("themeStyle.css");
 
+    if (root.contains("font")) {
+        TRY_INTO(const auto& fontRoot, Json::requireObject(root, "font"))
+        QFont font;
+        auto family = fontRoot["family"].toString();
+        if (!family.isEmpty())
+            font.setFamily(family);
+        auto pointSize = fontRoot["pointSize"].toInt();
+        if (pointSize > 0)
+            font.setPointSize(pointSize);
+        m_font = font;
+    }
+
     auto readColor = [](const QJsonObject& colors, const QString& colorName) -> QColor {
         auto colorValue = colors[colorName].toString();
         if (!colorValue.isEmpty()) {

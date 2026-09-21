@@ -17,9 +17,11 @@
 
 #include "InstanceCardDelegate.h"
 
+#include <QAbstractItemView>
 #include <QDebug>
 #include <QPainter>
-#include <QSet>
+#include <QPointer>
+#include <QTimer>
 
 #include "InstanceList.h"
 #include "InstanceView.h"
@@ -40,20 +42,17 @@ constexpr int kBorder = 2;
 
 QString instanceMinecraftVersion(MinecraftInstance* instance)
 {
+    return instance->getPackProfile()->getComponentVersion("net.minecraft");
+}
+
+void ensureProfileLoaded(MinecraftInstance* instance)
+{
     auto* profile = instance->getPackProfile();
-    QString version = profile->getComponentVersion("net.minecraft");
-    if (version.isEmpty()) {
-        // ponytail: profiles load lazily; try an offline load once per instance so cards never re-read broken packs on every paint
-        static QSet<QString> tried;
-        if (!tried.contains(instance->id())) {
-            tried.insert(instance->id());
-            if (auto res = profile->reload(Net::Mode::Offline); !res) {
-                qWarning() << "Failed to reload components:" << res.error();
-            }
-            version = profile->getComponentVersion("net.minecraft");
-        }
-    }
-    return version;
+    // an update/resolve task in flight (e.g. a launch) owns the profile; reload() would abort it
+    if (!profile->getComponentVersion("net.minecraft").isEmpty() || profile->getCurrentTask())
+        return;
+    if (auto res = profile->reload(Net::Mode::Offline); !res)
+        qWarning() << "Failed to reload components:" << res.error();
 }
 
 QString instanceLoaderName(MinecraftInstance* instance)
@@ -78,6 +77,54 @@ QString instanceLoaderName(MinecraftInstance* instance)
         }
     }
     return QObject::tr("Vanilla");
+}
+
+QString InstanceCardDelegate::details(MinecraftInstance* instance, const QWidget* view) const
+{
+    const QString id = instance->id();
+    if (auto it = m_details.constFind(id); it != m_details.constEnd())
+        return *it;
+
+    if (!m_watched.contains(id)) {
+        m_watched.insert(id);
+        auto invalidate = [this, id] {
+            m_details.remove(id);
+            if (m_view)
+                m_view->viewport()->update();
+        };
+        connect(instance, &BaseInstance::propertiesChanged, this, invalidate);
+        connect(instance, &QObject::destroyed, this, [this, id] {
+            m_details.remove(id);
+            m_watched.remove(id);
+        });
+        auto* profile = instance->getPackProfile();
+        connect(profile, &QAbstractItemModel::modelReset, this, invalidate);
+        connect(profile, &QAbstractItemModel::rowsInserted, this, invalidate);
+        connect(profile, &QAbstractItemModel::rowsRemoved, this, invalidate);
+        connect(profile, &QAbstractItemModel::dataChanged, this, invalidate);
+    }
+    m_view = qobject_cast<const QAbstractItemView*>(view);
+
+    auto compute = [](MinecraftInstance* inst) {
+        QStringList parts{ instanceMinecraftVersion(inst), instanceLoaderName(inst) };
+        parts.removeAll(QString());
+        return parts.join(QString(" %1 ").arg(QChar(0xB7)));
+    };
+    if (!instanceMinecraftVersion(instance).isEmpty()) {
+        m_details.insert(id, compute(instance));
+        return m_details[id];
+    }
+    // profile not loaded: show nothing now, load it once outside paint(), then repaint
+    m_details.insert(id, QString());
+    QTimer::singleShot(0, this, [this, id, inst = QPointer<MinecraftInstance>(instance), compute] {
+        if (!inst)
+            return;
+        ensureProfileLoaded(inst);
+        m_details.insert(id, compute(inst));
+        if (m_view)
+            m_view->viewport()->update();
+    });
+    return QString();
 }
 
 void InstanceCardDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
@@ -143,8 +190,7 @@ void InstanceCardDelegate::paint(QPainter* painter, const QStyleOptionViewItem& 
                       nameMetrics.elidedText(opt.text, Qt::ElideRight, textWidth));
 
     if (instance) {
-        QStringList parts{ instanceMinecraftVersion(instance), instanceLoaderName(instance),
-                           Time::prettifyDuration(instance->totalTimePlayed()) };
+        QStringList parts{ details(instance, opt.widget), Time::prettifyDuration(instance->totalTimePlayed()) };
         parts.removeAll(QString());
         painter->setFont(opt.font);
         painter->setPen(opt.palette.color(cg, QPalette::Mid));

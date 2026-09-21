@@ -55,6 +55,7 @@ class CustomTheme : public ITheme {
     QString qtTheme() override;
     LogColors logColorScheme() override { return m_logColors; }
     QStringList searchPaths() override;
+    std::optional<QFont> font() override { return m_font; }
 
    private:
     Result<> read(const QString& path, bool& hasCustomLogColors);
@@ -68,6 +69,7 @@ class CustomTheme : public ITheme {
     QString m_widgets;
     QString m_qssFilePath;
     LogColors m_logColors;
+    std::optional<QFont> m_font;
     /**
      * The tooltip could be defined in the theme json,
      * or composed of other fields that could be in there.

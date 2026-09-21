@@ -53,7 +53,8 @@ public class HudConfig {
         public boolean free() { return x != null && y != null; }
     }
 
-    public static final String[] IDS = {"fps", "tps", "coords", "direction", "ping", "memory", "clock", "armor", "inventory"};
+    public static final String[] IDS = {"fps", "tps", "coords", "direction", "ping", "memory", "clock", "armor", "inventory",
+            "keystrokes", "cps", "speed", "biome", "gametime", "light", "target", "server", "session", "effects", "hunger", "health"};
 
     static Map<String, Widget> defaultWidgets() {
         Map<String, Widget> m = new LinkedHashMap<String, Widget>();
@@ -66,6 +67,19 @@ public class HudConfig {
         m.put("clock", new Widget(false, "top-right", 2));
         m.put("armor", new Widget(false, "bottom-left", 0));
         m.put("inventory", new Widget(false, "bottom-right", 0));
+        // v4, all off by default
+        m.put("keystrokes", new Widget(false, "bottom-left", 1));
+        m.put("cps", new Widget(false, "bottom-left", 2));
+        m.put("speed", new Widget(false, "top-left", 4));
+        m.put("biome", new Widget(false, "top-left", 5));
+        m.put("gametime", new Widget(false, "top-right", 3));
+        m.put("light", new Widget(false, "top-left", 6));
+        m.put("target", new Widget(false, "top-left", 7));
+        m.put("server", new Widget(false, "top-right", 4));
+        m.put("session", new Widget(false, "top-right", 5));
+        m.put("effects", new Widget(false, "top-right", 6));
+        m.put("hunger", new Widget(false, "bottom-left", 3));
+        m.put("health", new Widget(false, "bottom-left", 4));
         return m;
     }
 

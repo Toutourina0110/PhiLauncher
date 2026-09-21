@@ -35,9 +35,11 @@
  */
 #pragma once
 #include <MessageLevel.h>
+#include <QFont>
 #include <QMap>
 #include <QPalette>
 #include <QString>
+#include <optional>
 
 class QStyle;
 
@@ -63,6 +65,8 @@ class ITheme {
     virtual double fadeAmount() = 0;
     virtual LogColors logColorScheme() { return defaultLogColors(colorScheme()); }
     virtual QStringList searchPaths() { return {}; }
+    /// UI font applied application-wide with the theme; nullopt keeps the default font.
+    virtual std::optional<QFont> font() { return std::nullopt; }
 
     static QPalette fadeInactive(QPalette in, qreal bias, QColor color);
     static LogColors defaultLogColors(const QPalette& palette);

@@ -9,6 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
@@ -46,6 +47,9 @@ final class Compat {
 	static boolean hudHidden(Minecraft mc) {
 		return mc.gui.screen() != null || mc.gui.hud.isHidden() || mc.getDebugOverlay().showDebugScreen();
 	}
+
+	/** World day time in ticks (0 = dawn of day 0). */
+	static long dayTime(ClientLevel level) { return level.getOverworldClockTime(); }
 
 	static Screen screen(Minecraft mc) { return mc.gui.screen(); }
 	static void setScreen(Minecraft mc, Screen s) { mc.gui.setScreen(s); }

@@ -163,3 +163,36 @@ Config additions (still `"version": 2`, all optional, inherit when absent):
 "fps": { "enabled": true, "anchor": "top-left", "order": 0, "x": 0.02, "y": 0.05,
          "scale": 1.5, "color": "#55FF55", "background": false }
 ```
+
+## v4 — more widgets, performance
+
+### New widgets (both loaders; ids are stable, add them to the launcher's list too)
+
+| id           | Shows                                                                                   | default anchor |
+|--------------|-----------------------------------------------------------------------------------------|----------------|
+| `keystrokes` | WASD + LMB/RMB + space as small keys that light up when pressed (mini keyboard, ~54×54) | bottom-left    |
+| `cps`        | `CPS: 6 \| 3` left/right clicks per second (rolling 1 s window)                          | bottom-left    |
+| `speed`      | `Speed: 5.6 b/s` horizontal blocks per second (smoothed over 5 ticks)                   | top-left       |
+| `biome`      | `Biome: Plains`                                                                         | top-left       |
+| `gametime`   | In-game clock `Day 12, 14:05` from world day time                                       | top-right      |
+| `light`      | `Light: 12 (sky 15)` block/sky light at the player's feet                               | top-left       |
+| `target`     | Looked-at block or entity name (`Looking at: Oak Log`), `--` when nothing in reach       | top-left       |
+| `server`     | `Server: play.example.net` or `Singleplayer`                                            | top-right      |
+| `session`    | `Session: 1h 12m` time since the client connected to this world/server                  | top-right      |
+| `effects`    | Active potion effects, one line each `Speed II 1:23`, drawn as a small list             | top-right      |
+| `hunger`     | `Food: 18/20  Sat: 4.5`                                                                 | bottom-left    |
+| `health`     | `HP: 17.5/20  Armor: 12`                                                                | bottom-left    |
+
+All disabled by default. `keystrokes` and `effects` are non-text widgets (draw their own box).
+
+### Performance rules (both loaders)
+
+- Text widgets recompute their string at most **every 2 client ticks** (10×/s); FPS/CPS/speed every
+  tick is fine. Cache the formatted `String` per widget; never format in the render loop when the
+  tick cache is fresh.
+- The layout (positions + sizes) is recomputed only when the config changes, the window is resized,
+  or a cached string's width changes; otherwise reuse the last layout.
+- Config poll stays 2 s, but use a single `File.lastModified()` call per poll (no re-parse unless
+  changed).
+- No per-frame allocations in the hot path beyond the strings above (no streams, no lambdas
+  capturing, no new lists).

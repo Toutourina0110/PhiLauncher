@@ -19,6 +19,7 @@
 #pragma once
 
 #include <QDir>
+#include <QFont>
 #include <QLoggingCategory>
 #include <QString>
 #include <memory>
@@ -49,6 +50,10 @@ class ThemeManager {
     void applyCurrentlySelectedTheme(bool initial = false);
     void setIconTheme(const QString& name);
     void setApplicationTheme(const QString& name, bool initial = false);
+    /// Re-reads a theme.json theme from disk and re-applies it if it is the current theme.
+    void reloadTheme(const QString& id);
+    /// Deletes the user's copy of a bundled theme, re-seeds it from resources and reloads it.
+    void resetBundledTheme(const QString& id);
 
     /// @brief Returns the background based on selected and with events (Birthday, XMas, etc.)
     /// @param catName Optional, if you need a specific background.
@@ -70,6 +75,7 @@ class ThemeManager {
     QDir m_catPacksFolder{"catpacks"};
     std::map<QString, std::unique_ptr<CatPack>> m_catPacks;
     QPalette m_defaultPalette;
+    QFont m_defaultFont;
     QString m_defaultStyle;
     LogColors m_logColors;
 

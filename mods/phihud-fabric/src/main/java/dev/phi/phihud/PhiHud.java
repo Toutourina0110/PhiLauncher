@@ -27,6 +27,7 @@ public final class PhiHud implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		Compat.registerHud(HudRenderer::render);
+		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> HudRenderer.onJoin());
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> Tps.reset());
 		HudConfig.get();
 
@@ -34,6 +35,7 @@ public final class PhiHud implements ClientModInitializer {
 			KeyMapping.Category.register(Identifier.fromNamespaceAndPath("phihud", "main"))));
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			while (key.consumeClick()) Compat.setScreen(client, Compat.newEditor(Compat.screen(client)));
+			HudRenderer.tick(client);
 		});
 
 		ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {

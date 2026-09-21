@@ -147,9 +147,10 @@ void ResumePanel::setInstance(MinecraftInstance* newInstance)
     }
     m_instance = newInstance;
     if (m_instance) {
+        ensureProfileLoaded(m_instance);
         connect(m_instance, &BaseInstance::runningStatusChanged, this, &ResumePanel::refresh);
         connect(m_instance, &BaseInstance::propertiesChanged, this, &ResumePanel::refresh);
-        connect(APPLICATION->stats(), &StatsStore::changed, this, &ResumePanel::refresh, Qt::UniqueConnection);
+        connect(APPLICATION->stats(), &StatsStore::changed, this, &ResumePanel::refreshPlaytime, Qt::UniqueConnection);
         connect(m_instance, &QObject::destroyed, this, [this] {
             m_instance = nullptr;
             refresh();
@@ -168,7 +169,13 @@ void ResumePanel::refresh()
     m_icon->setPixmap(APPLICATION->icons()->getIcon(m_instance->iconKey()).pixmap(kIconSize, kIconSize));
     m_name->setText(m_instance->name());
     m_version->setText(tr("Minecraft %1 %2 %3").arg(instanceMinecraftVersion(m_instance), kMiddleDot, instanceLoaderName(m_instance)));
+    refreshPlaytime();
+}
 
+void ResumePanel::refreshPlaytime()
+{
+    if (!m_instance)
+        return;
     const bool noDays = APPLICATION->settings()->get("ShowGameTimeWithoutDays").toBool();
     const qint64 live = APPLICATION->stats()->activeSeconds(m_instance->id());
     if (m_instance->isRunning()) {

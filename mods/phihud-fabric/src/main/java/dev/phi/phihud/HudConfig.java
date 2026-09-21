@@ -53,6 +53,19 @@ public final class HudConfig {
 		DEFAULT_WIDGETS.put("clock", new Widget(false, "top-right", 2));
 		DEFAULT_WIDGETS.put("armor", new Widget(false, "bottom-left", 0));
 		DEFAULT_WIDGETS.put("inventory", new Widget(false, "bottom-right", 0));
+		// v4
+		DEFAULT_WIDGETS.put("speed", new Widget(false, "top-left", 4));
+		DEFAULT_WIDGETS.put("biome", new Widget(false, "top-left", 5));
+		DEFAULT_WIDGETS.put("light", new Widget(false, "top-left", 6));
+		DEFAULT_WIDGETS.put("target", new Widget(false, "top-left", 7));
+		DEFAULT_WIDGETS.put("gametime", new Widget(false, "top-right", 3));
+		DEFAULT_WIDGETS.put("server", new Widget(false, "top-right", 4));
+		DEFAULT_WIDGETS.put("session", new Widget(false, "top-right", 5));
+		DEFAULT_WIDGETS.put("effects", new Widget(false, "top-right", 6));
+		DEFAULT_WIDGETS.put("keystrokes", new Widget(false, "bottom-left", 1));
+		DEFAULT_WIDGETS.put("cps", new Widget(false, "bottom-left", 2));
+		DEFAULT_WIDGETS.put("hunger", new Widget(false, "bottom-left", 3));
+		DEFAULT_WIDGETS.put("health", new Widget(false, "bottom-left", 4));
 	}
 
 	public boolean enabled = true;
@@ -122,6 +135,8 @@ public final class HudConfig {
 	private static HudConfig current = new HudConfig().fillDefaults();
 	private static long lastPoll;
 	private static long lastMtime = -1;
+	/** Bumped on every reload and save; the renderer rebuilds its cached layout when it changes. */
+	public static int revision;
 
 	/** Returns the current config, re-reading the file if its mtime changed (checked every 2 s). */
 	public static HudConfig get() {
@@ -132,16 +147,12 @@ public final class HudConfig {
 		if (mtime == lastMtime) return current;
 		lastMtime = mtime;
 		current = mtime == 0 ? new HudConfig().fillDefaults() : load();
+		revision++;
 		return current;
 	}
 
-	private static long mtime() {
-		try {
-			return Files.getLastModifiedTime(FILE).toMillis();
-		} catch (IOException e) {
-			return 0; // missing file = defaults
-		}
-	}
+	/** One stat call per poll; 0 when the file is missing (= defaults). */
+	private static long mtime() { return FILE.toFile().lastModified(); }
 
 	private static HudConfig load() {
 		try (Reader r = Files.newBufferedReader(FILE)) {
@@ -193,5 +204,6 @@ public final class HudConfig {
 		} catch (IOException e) {
 			PhiHud.LOGGER.warn("[phihud] could not write {}: {}", FILE, e.toString());
 		}
+		revision++;
 	}
 }

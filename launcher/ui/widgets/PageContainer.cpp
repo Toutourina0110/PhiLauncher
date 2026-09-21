@@ -152,7 +152,7 @@ const QList<BasePage*>& PageContainer::getPages() const
 void PageContainer::refreshContainer()
 {
     m_proxyModel->invalidate();
-    if (!m_currentPage->shouldDisplay()) {
+    if (!m_currentPage || !m_currentPage->shouldDisplay()) {
         auto index = m_proxyModel->index(0, 0);
         if (index.isValid()) {
             m_pageList->setCurrentIndex(index);
@@ -307,9 +307,12 @@ void PageContainer::updateGridSize()
     // a couple of px of slack: IconMode wraps a cell that touches the viewport edge
     const int w = qMax(120, (vp.width() - 4) / cols);
     const int h = qMax(110, (vp.height() - 4) / rows);
+    const QSize grid(w, h);
+    if (grid == m_pageList->gridSize())
+        return;  // viewport resize that did not change the tiles: no re-layout
     if (auto* d = dynamic_cast<PageCardDelegate*>(m_pageList->itemDelegate()))
-        d->setTileSize(QSize(w, h));
-    m_pageList->setGridSize(QSize(w, h));
+        d->setTileSize(grid);
+    m_pageList->setGridSize(grid);
     m_pageList->doItemsLayout();
 }
 
@@ -360,7 +363,7 @@ void PageContainer::currentChanged(const QModelIndex& current)
 {
     int selectedIndex = current.isValid() ? m_proxyModel->mapToSource(current).row() : -1;
 
-    auto* selected = m_model->pages().at(selectedIndex);
+    auto* selected = selectedIndex >= 0 ? m_model->pages().at(selectedIndex) : nullptr;
     auto* previous = m_currentPage;
 
     emit selectedPageChanged(previous, selected);

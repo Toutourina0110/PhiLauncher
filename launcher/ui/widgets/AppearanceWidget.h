@@ -22,9 +22,12 @@
 #include <QDialog>
 
 #include <translations/TranslationsModel.h>
+#include <QMap>
 #include <QTextCursor>
 
+class QLineEdit;
 class QTextCharFormat;
+class QToolButton;
 class SettingsObject;
 
 namespace Ui {
@@ -52,7 +55,22 @@ class AppearanceWidget : public QWidget {
     void updateConsolePreview();
     void updateCatPreview();
 
+    // "Phi" section: edits themes/blocky/theme.json and re-applies it live
+    void buildColorGrid();
+    void loadPhiSettings();
+    void savePhiSettings();
+    void applyPreset(const QMap<QString, QString>& colors);
+    void resetPhiTheme();
+    void pickColor(const QString& key);
+
+    struct ColorRow {
+        QToolButton* swatch;
+        QLineEdit* edit;
+    };
+
     Ui::AppearanceWidget* m_ui;
     QTextCharFormat m_defaultFormat;
     bool m_themesOnly;
+    QMap<QString, ColorRow> m_colorRows;
+    bool m_loadingPhi = false;
 };

@@ -3,7 +3,7 @@
 	"id": "phihud",
 	"version": "${version}",
 	"name": "Phi HUD",
-	"description": "In-game overlay shipped with Phi Launcher: FPS, TPS, coordinates, direction, ping, memory, clock, armor and inventory widgets configured from config/phihud.json.",
+	"description": "In-game overlay shipped with Phi Launcher: FPS, TPS, coordinates, direction, ping, memory, clock, armor, inventory, keystrokes, CPS, speed, biome, game time, light, target, server, session, effects, hunger and health widgets configured from config/phihud.json.",
 	"authors": ["Phi Launcher"],
 	"license": "MIT",
 	"environment": "client",

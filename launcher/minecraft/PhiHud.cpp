@@ -150,7 +150,8 @@ std::optional<Support> supportFor(const QString& loader, const QString& mcVersio
 std::optional<Support> supportFor(MinecraftInstance* inst)
 {
     auto* profile = inst->getPackProfile();
-    if (profile->getComponentVersion("net.minecraft").isEmpty()) {
+    // not loaded yet (and no update task owning the profile, which reload() would abort)
+    if (profile->getComponentVersion("net.minecraft").isEmpty() && !profile->getCurrentTask()) {
         if (auto res = profile->reload(Net::Mode::Offline); !res)
             qWarning() << "PhiHud: failed to load components:" << res.error();
     }
@@ -218,6 +219,19 @@ const WidgetInfo WIDGETS[] = {
     { "clock", "Clock", false, "top-right", 2 },
     { "armor", "Armor", false, "bottom-left", 0 },
     { "inventory", "Inventory", false, "bottom-right", 0 },
+    // v4
+    { "keystrokes", "Keystrokes", false, "bottom-left", 1 },
+    { "cps", "CPS", false, "bottom-left", 2 },
+    { "speed", "Speed", false, "top-left", 4 },
+    { "biome", "Biome", false, "top-left", 5 },
+    { "gametime", "Game time", false, "top-right", 3 },
+    { "light", "Light level", false, "top-left", 6 },
+    { "target", "Target", false, "top-left", 7 },
+    { "server", "Server", false, "top-right", 4 },
+    { "session", "Session time", false, "top-right", 5 },
+    { "effects", "Potion effects", false, "top-right", 6 },
+    { "hunger", "Hunger", false, "bottom-left", 3 },
+    { "health", "Health", false, "bottom-left", 4 },
 };
 const QStringList ANCHORS = { "top-left", "top-right", "bottom-left", "bottom-right" };
 }  // namespace
