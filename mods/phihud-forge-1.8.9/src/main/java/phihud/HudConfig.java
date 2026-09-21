@@ -28,6 +28,8 @@ public class HudConfig {
 
     /** The parsed file as-is; save() patches only the keys the mod owns so unknown keys survive. */
     public transient JsonObject raw = new JsonObject();
+    /** Set by the menu's Settings panel; save() then also writes the root display keys. */
+    public transient boolean globalsDirty;
 
     public static class Widget {
         public boolean enabled = true;
@@ -35,6 +37,10 @@ public class HudConfig {
         public int order = 0;
         /** v2 free position (fractions of the scaled screen, pivot corner); null = anchor stacking. */
         public Double x, y;
+        /** v3 optional overrides; null = inherit the global value. */
+        public Float scale;
+        public String color;
+        public Boolean background;
 
         Widget() {}
 
@@ -64,12 +70,19 @@ public class HudConfig {
     }
 
     /** Text color as ARGB with full alpha. */
-    public int argb() {
+    public int argb() { return argb(color); }
+
+    static int argb(String hex) {
         try {
-            return 0xFF000000 | (Integer.parseInt(color.trim().replace("#", ""), 16) & 0xFFFFFF);
+            return 0xFF000000 | (Integer.parseInt(hex.trim().replace("#", ""), 16) & 0xFFFFFF);
         } catch (RuntimeException e) {
             return 0xFFFFFFFF;
         }
+    }
+
+    /** True for "#RRGGBB" / "RRGGBB". */
+    static boolean validHex(String hex) {
+        return hex != null && hex.trim().replace("#", "").matches("[0-9a-fA-F]{6}");
     }
 
     /** Parses the file; a missing/unreadable file yields all defaults. Widgets absent from the file get their default. */
@@ -97,16 +110,30 @@ public class HudConfig {
         for (Map.Entry<String, Widget> d : defaultWidgets().entrySet()) {
             Widget w = c.widgets.get(d.getKey());
             if (w == null) c.widgets.put(d.getKey(), d.getValue());
-            else if (w.anchor == null) w.anchor = d.getValue().anchor;
+            else {
+                if (w.anchor == null) w.anchor = d.getValue().anchor;
+                if (w.scale != null && w.scale <= 0) w.scale = null;
+            }
         }
         if (c.scale <= 0) c.scale = 1f;
         return c;
     }
 
-    /** Read-modify-write: patches version, root enabled and each widget's enabled/x/y into the parsed file. */
+    /**
+     * Read-modify-write: patches version, root enabled and each widget's enabled/x/y/scale/color/background
+     * into the parsed file. The other root keys are written only after the Settings panel changed them.
+     */
     public void save(File f) {
         raw.addProperty("version", 2);
         raw.addProperty("enabled", enabled);
+        if (globalsDirty) {
+            raw.addProperty("scale", scale);
+            raw.addProperty("color", color);
+            raw.addProperty("background", background);
+            raw.addProperty("backgroundOpacity", backgroundOpacity);
+            raw.addProperty("shadow", shadow);
+            raw.addProperty("margin", margin);
+        }
         JsonObject ws = obj(raw, "widgets");
         for (Map.Entry<String, Widget> e : widgets.entrySet()) {
             Widget w = e.getValue();
@@ -119,6 +146,9 @@ public class HudConfig {
             o.addProperty("enabled", w.enabled);
             if (w.free()) { o.addProperty("x", w.x); o.addProperty("y", w.y); }
             else { o.remove("x"); o.remove("y"); }
+            if (w.scale != null) o.addProperty("scale", w.scale); else o.remove("scale");
+            if (w.color != null) o.addProperty("color", w.color); else o.remove("color");
+            if (w.background != null) o.addProperty("background", w.background); else o.remove("background");
         }
         Writer wr = null;
         try {

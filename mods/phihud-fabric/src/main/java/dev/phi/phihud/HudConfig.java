@@ -16,15 +16,20 @@ import java.util.Map;
 
 /**
  * config/phihud.json — see PHIHUD_SPEC.md. Unknown keys/widgets are ignored, missing ones use defaults.
- * Writes are read-modify-write: the parsed file is kept in {@link #raw} and only version / enabled / x / y are patched.
+ * Writes are read-modify-write: the parsed file is kept in {@link #raw} and only the keys the menu edits are patched
+ * (version, the root options, each widget's enabled / x / y / scale / color / background).
  */
 public final class HudConfig {
 	public static final class Widget {
 		public Boolean enabled;
 		public String anchor;
 		public Integer order;
-		/** v2 free position (fractions of the scaled screen, pivot = nearest corner); null = anchor stacking. */
+		/** v2 free position (fractions of the screen, pivot = nearest corner); null = anchor stacking. */
 		public Double x, y;
+		/** v3 per-widget overrides; null = inherit the root value. */
+		public Double scale;
+		public String color;
+		public Boolean background;
 
 		Widget() {}
 
@@ -63,13 +68,28 @@ public final class HudConfig {
 	private transient JsonObject raw;
 
 	/** ARGB text color. */
-	public int argb() {
+	public int argb() { return argb(color); }
+
+	static int argb(String hex) {
 		try {
-			return 0xFF000000 | Integer.parseInt(color.trim().replace("#", ""), 16);
+			return 0xFF000000 | Integer.parseInt(hex.trim().replace("#", ""), 16);
 		} catch (RuntimeException e) {
 			return 0xFFFFFFFF;
 		}
 	}
+
+	/** "#RRGGBB" or null when the text is not a hex color. */
+	static String hex(String text) {
+		String t = text.trim().replace("#", "");
+		return t.matches("[0-9a-fA-F]{6}") ? "#" + t.toUpperCase() : null;
+	}
+
+	public static float clampScale(double s) { return (float) Math.max(0.25, Math.min(4.0, s)); }
+
+	// ---- per-widget values, inheriting the root when the widget has no override ----
+	public float scale(Widget w) { return clampScale(w.scale != null ? w.scale : scale); }
+	public int argb(Widget w) { return argb(w.color != null ? w.color : color); }
+	public boolean background(Widget w) { return w.background != null ? w.background : background; }
 
 	/** ARGB background color. */
 	public int backgroundArgb() {
@@ -135,11 +155,17 @@ public final class HudConfig {
 		}
 	}
 
-	/** Patches version 2, root enabled and each widget's enabled/x/y into the file, keeping everything else. */
+	/** Patches version 2, the root options and each widget's enabled/x/y/scale/color/background into the file, keeping everything else. */
 	public void save() {
 		JsonObject root = raw != null ? raw : GSON.toJsonTree(this).getAsJsonObject();
 		root.addProperty("version", 2);
 		root.addProperty("enabled", enabled);
+		root.addProperty("scale", scale);
+		root.addProperty("color", color);
+		root.addProperty("background", background);
+		root.addProperty("backgroundOpacity", backgroundOpacity);
+		root.addProperty("shadow", shadow);
+		root.addProperty("margin", margin);
 		JsonObject ws = root.get("widgets") instanceof JsonObject o ? o : new JsonObject();
 		root.add("widgets", ws);
 		widgets.forEach((id, w) -> {
@@ -153,6 +179,9 @@ public final class HudConfig {
 				o.remove("x");
 				o.remove("y");
 			}
+			if (w.scale != null) o.addProperty("scale", w.scale); else o.remove("scale");
+			if (w.color != null) o.addProperty("color", w.color); else o.remove("color");
+			if (w.background != null) o.addProperty("background", w.background); else o.remove("background");
 		});
 		try {
 			Files.createDirectories(FILE.getParent());

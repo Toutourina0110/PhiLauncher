@@ -56,17 +56,33 @@ final class Compat {
 		ScreenEvents.afterRender(screen).register((s, g, mx, my, tick) -> draw.accept(wrap(g)));
 	}
 
-	/** Phi logo, 192x96, centered where the vanilla logo + edition banner sit. */
-	static void drawLogo(Object graphics, int width, float alpha, int heightOffset) {
-		((GuiGraphics) graphics).blit(RenderPipelines.GUI_TEXTURED, LOGO, width / 2 - 96, heightOffset - 22, 0, 0, 192, 96, 512, 256, ARGB.white(alpha));
+	/** Phi logo: 128x128 texture drawn 1:1 (region == texture size; {@code size} < 128 only shrinks it on tiny screens). */
+	static void drawLogo(Object graphics, int x, int y, int size, float alpha) {
+		((GuiGraphics) graphics).blit(RenderPipelines.GUI_TEXTURED, LOGO, x, y, 0f, 0f, size, size, 128, 128, 128, 128, ARGB.white(alpha));
 	}
 
 	static Screen newEditor(Screen parent) {
-		return new HudEditorScreen(parent) {
+		return new HudMenuScreen(parent) {
 			@Override
 			public void renderBackground(GuiGraphics g, int mx, int my, float tick) {
 				if (minecraft.level == null) super.renderBackground(g, mx, my, tick); // panorama on the title screen, clear view in-game
-				drawBoxes(wrap(g), mx, my);
+				drawBackground(wrap(g), mx, my);
+			}
+
+			@Override
+			protected WidgetList newList(int width, int height, int y) {
+				return new WidgetList(minecraft, width, height, y) {
+					@Override protected void renderListBackground(GuiGraphics g) {}
+					@Override protected void renderListSeparators(GuiGraphics g) {}
+				};
+			}
+
+			@Override
+			protected Row newRow(String id) {
+				return new Row(id) {
+					@Override
+					public void renderContent(GuiGraphics g, int mx, int my, boolean hovered, float tick) { draw(wrap(g), mx, my, hovered); }
+				};
 			}
 		};
 	}

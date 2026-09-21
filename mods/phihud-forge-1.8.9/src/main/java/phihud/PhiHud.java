@@ -52,6 +52,7 @@ public class PhiHud {
     private long cfgMtime = -1, nextPoll;
     HudConfig cfg = new HudConfig();
     KeyBinding editorKey;
+    private int titleFirstButtonY = 108; // vanilla: height / 4 + 48 at 240 px
 
     // TPS: wall-clock interval between S03PacketTimeUpdate packets (server sends one every 20 ticks).
     private volatile double tps = -1;
@@ -105,8 +106,13 @@ public class PhiHud {
         boolean title = e.gui.getClass() == GuiMainMenu.class;
         if (!title && e.gui.getClass() != GuiIngameMenu.class) return;
         GuiButton options = null;
-        for (GuiButton b : e.buttonList) if (b.id == 0) options = b;
+        int firstY = Integer.MAX_VALUE;
+        for (GuiButton b : e.buttonList) {
+            if (b.id == 0) options = b;
+            firstY = Math.min(firstY, b.yPosition);
+        }
         if (options == null) return;
+        if (title) titleFirstButtonY = firstY;
         int y = options.yPosition + 24;
         if (!title) for (GuiButton b : e.buttonList) if (b.yPosition >= y) b.yPosition += 24; // push "Disconnect" down
         e.buttonList.add(new GuiButton(PHI_BUTTON, e.gui.width / 2 - 100, y, 200, 20, "Phi HUD"));
@@ -127,7 +133,9 @@ public class PhiHud {
         GlStateManager.enableBlend();
         GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
         mc.getTextureManager().bindTexture(LOGO);
-        Gui.drawModalRectWithCustomSizedTexture(e.gui.width / 2 - 72, 14, 0, 0, 144, 72, 144, 72);
+        // 128x128 texture drawn 1:1, bottom edge 8 px above the first button; shrunk (square) when the screen is too short.
+        int size = Math.min(128, titleFirstButtonY - 12);
+        if (size > 0) Gui.drawScaledCustomSizeModalRect(e.gui.width / 2 - size / 2, titleFirstButtonY - 8 - size, 0, 0, 128, 128, size, size, 128, 128);
         mc.fontRendererObj.drawStringWithShadow("Phi Launcher", 2, e.gui.height - 20, 0xFFB3A6FF);
     }
 
@@ -178,20 +186,27 @@ public class PhiHud {
 
     static final int PAD = 2, LINE = 10, SLOT = 18;
 
+    /** w/h are the natural (unscaled) size; scale/color/bg are the resolved per-widget values. */
     static final class Item {
         final String id, text;
-        final int w, h, order;
-        final boolean enabled;
-        Item(String id, String text, int w, int h, int order, boolean enabled) {
-            this.id = id; this.text = text; this.w = w; this.h = h; this.order = order; this.enabled = enabled;
+        final int w, h, order, color;
+        final boolean enabled, bg;
+        final float scale;
+        Item(String id, String text, int w, int h, HudConfig.Widget wd, HudConfig c) {
+            this.id = id; this.text = text; this.w = w; this.h = h; this.order = wd.order; this.enabled = wd.enabled;
+            this.scale = wd.scale != null ? wd.scale : c.scale;
+            this.color = wd.color != null ? HudConfig.argb(wd.color) : c.argb();
+            this.bg = wd.background != null ? wd.background : c.background;
         }
+        int sw() { return Math.round(w * scale); }
+        int sh() { return Math.round(h * scale); }
     }
 
-    /** A placed item: content position; the box is the item size padded by PAD. */
+    /** A placed item: content position (x, y) and the vertical extent (y0..y1) of its background slice. */
     static final class Box {
         final Item item;
-        final int x, y;
-        Box(Item item, int x, int y) { this.item = item; this.x = x; this.y = y; }
+        final int x, y, y0, y1;
+        Box(Item item, int x, int y, int y0, int y1) { this.item = item; this.x = x; this.y = y; this.y0 = y0; this.y1 = y1; }
     }
 
     /** One background box: a free-positioned widget or an anchor stack. */
@@ -200,23 +215,23 @@ public class PhiHud {
         int x, y, w, h;
     }
 
-    /** Lays out widgets for a W x H scaled screen. all = include disabled widgets (editor). */
+    /** Lays out widgets for a W x H (GUI px) screen. all = include disabled widgets (editor). */
     List<Group> layout(HudConfig c, int W, int H, boolean all) {
         List<Group> out = new ArrayList<Group>();
         Map<String, List<Item>> stacks = new LinkedHashMap<String, List<Item>>();
         for (Map.Entry<String, HudConfig.Widget> e : c.widgets.entrySet()) {
             HudConfig.Widget w = e.getValue();
             if (!w.enabled && !all) continue;
-            Item it = make(e.getKey(), w, all);
+            Item it = make(e.getKey(), w, c, all);
             if (it == null) continue;
             if (w.free()) {
                 Group g = new Group();
-                g.w = it.w + 2 * PAD;
-                g.h = it.h + 2 * PAD;
+                g.w = it.sw() + 2 * PAD;
+                g.h = it.sh() + 2 * PAD;
                 int px = (int) Math.round(w.x * W), py = (int) Math.round(w.y * H);
                 g.x = w.x < 0.5 ? px : px - g.w;
                 g.y = w.y < 0.5 ? py : py - g.h;
-                g.boxes.add(new Box(it, g.x + PAD, g.y + PAD));
+                g.boxes.add(new Box(it, g.x + PAD, g.y + PAD, g.y, g.y + g.h));
                 out.add(g);
             } else {
                 List<Item> l = stacks.get(w.anchor);
@@ -232,12 +247,17 @@ public class PhiHud {
             });
             if (!top) Collections.reverse(items); // bottom anchors stack upward: order 0 nearest the edge
             Group g = new Group();
-            for (Item it : items) { g.w = Math.max(g.w, it.w); g.h += it.h; }
+            for (Item it : items) { g.w = Math.max(g.w, it.sw()); g.h += it.sh(); }
             g.w += 2 * PAD; g.h += 2 * PAD;
-            g.x = left ? c.margin : W - c.margin - g.w;
-            g.y = top ? c.margin : H - c.margin - g.h;
+            int m = Math.round(c.margin * c.scale);
+            g.x = left ? m : W - m - g.w;
+            g.y = top ? m : H - m - g.h;
             int cy = g.y + PAD;
-            for (Item it : items) { g.boxes.add(new Box(it, g.x + PAD, cy)); cy += it.h; }
+            for (int i = 0; i < items.size(); i++) {
+                Item it = items.get(i);
+                g.boxes.add(new Box(it, g.x + PAD, cy, i == 0 ? g.y : cy, i == items.size() - 1 ? g.y + g.h : cy + it.sh()));
+                cy += it.sh();
+            }
             out.add(g);
         }
         return out;
@@ -250,23 +270,25 @@ public class PhiHud {
         if (!c.enabled || mc.currentScreen != null || mc.gameSettings.showDebugInfo || mc.thePlayer == null) return;
 
         ScaledResolution res = e.resolution;
-        float s = c.scale;
-        int W = (int) (res.getScaledWidth() / s), H = (int) (res.getScaledHeight() / s);
+        for (Group g : layout(c, res.getScaledWidth(), res.getScaledHeight(), false))
+            for (Box b : g.boxes) drawBox(g, b, c);
+    }
 
-        GlStateManager.pushMatrix();
-        GlStateManager.scale(s, s, 1f);
-        for (Group g : layout(c, W, H, false)) {
-            if (c.background) {
-                int a = MathHelper.clamp_int((int) (c.backgroundOpacity * 255), 0, 255);
-                Gui.drawRect(g.x, g.y, g.x + g.w, g.y + g.h, a << 24);
-                GlStateManager.color(1f, 1f, 1f, 1f);
-            }
-            for (Box b : g.boxes) draw(b.item, b.x, b.y, c);
+    /** Background slice + content of one placed widget, at its own scale. */
+    void drawBox(Group g, Box b, HudConfig c) {
+        if (b.item.bg) {
+            int a = MathHelper.clamp_int((int) (c.backgroundOpacity * 255), 0, 255);
+            Gui.drawRect(g.x, b.y0, g.x + g.w, b.y1, a << 24);
+            GlStateManager.color(1f, 1f, 1f, 1f);
         }
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(b.x, b.y, 0f);
+        GlStateManager.scale(b.item.scale, b.item.scale, 1f);
+        draw(b.item, c);
         GlStateManager.popMatrix();
     }
 
-    private Item make(String id, HudConfig.Widget w, boolean all) {
+    private Item make(String id, HudConfig.Widget w, HudConfig c, boolean all) {
         EntityPlayer p = mc.thePlayer;
         String t;
         if ("fps".equals(id)) t = "FPS: " + Minecraft.getDebugFPS();
@@ -287,11 +309,11 @@ public class PhiHud {
             t = String.format("Mem: %d / %d MB (%d%%)", used, max, max == 0 ? 0 : used * 100 / max);
         }
         else if ("clock".equals(id)) t = new SimpleDateFormat("HH:mm").format(new Date());
-        else if ("armor".equals(id)) return new Item(id, null, 5 * SLOT, SLOT, w.order, w.enabled);
-        else if ("inventory".equals(id)) return new Item(id, null, 9 * SLOT, 3 * SLOT, w.order, w.enabled);
+        else if ("armor".equals(id)) return new Item(id, null, 5 * SLOT, SLOT, w, c);
+        else if ("inventory".equals(id)) return new Item(id, null, 9 * SLOT, 3 * SLOT, w, c);
         else return null;
         if (all && !w.enabled) t += " (off)";
-        return new Item(id, t, mc.fontRendererObj.getStringWidth(t), LINE, w.order, w.enabled);
+        return new Item(id, t, mc.fontRendererObj.getStringWidth(t), LINE, w, c);
     }
 
     private static String facing(EnumFacing f) {
@@ -304,9 +326,11 @@ public class PhiHud {
         }
     }
 
-    void draw(Item it, int x, int y, HudConfig c) {
+    /** Draws the item's content at the origin (caller translates/scales). */
+    void draw(Item it, HudConfig c) {
+        int x = 0, y = 0;
         if (it.text != null) {
-            mc.fontRendererObj.drawString(it.text, x, y + 1, c.argb(), c.shadow);
+            mc.fontRendererObj.drawString(it.text, x, y + 1, it.color, c.shadow);
             return;
         }
         if (mc.thePlayer == null) return; // title-screen editor: empty slots

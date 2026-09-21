@@ -63,8 +63,11 @@ public final class PhiHud implements ClientModInitializer {
 
 	/** Called by LogoRendererMixin; true when the Phi logo replaced the vanilla one. */
 	public static boolean drawLogo(Object g, int width, float alpha, int heightOffset) {
-		if (!(Compat.screen(Compat.mc()) instanceof TitleScreen)) return false;
-		Compat.drawLogo(g, width, alpha, heightOffset);
+		Screen screen = Compat.screen(Compat.mc());
+		if (!(screen instanceof TitleScreen)) return false;
+		int buttons = Compat.widgets(screen).stream().mapToInt(AbstractWidget::getY).min().orElse(screen.height / 4 + 48);
+		int size = Math.min(128, buttons - 8 - 2); // 128 px 1:1; only shrinks when the screen is too short for it
+		Compat.drawLogo(g, (width - size) / 2, buttons - 8 - size, size, alpha);
 		return true;
 	}
 }

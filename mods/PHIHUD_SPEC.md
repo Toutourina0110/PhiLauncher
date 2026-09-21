@@ -124,3 +124,42 @@ Each widget may carry a free position set from the in-game editor:
 - The pause menu gets a **Phi HUD** button below "Options…" (same width as that row).
 - Everything else (panorama, buttons, realms, etc.) stays vanilla. Implement with mixins/events on
   the vanilla screens; do not replace the screen classes.
+
+## v3 — mod menu and logo fix
+
+### Logo (bug)
+
+The current draw uses a *region* blit: `blit(pipeline, LOGO, x, y, 0, 0, 192, 96, 512, 256)` takes the
+top-left 192×96 **pixels** of the 512×256 texture instead of scaling the whole image, so the title
+screen shows a huge cropped corner. Fix by shipping the logo at exactly the size it is drawn:
+`assets/phihud/textures/gui/phi_logo.png` becomes **128×128**, the Φ mark centered with a small
+margin, and it is drawn 128×128 (`u=v=0`, region = 128×128, texture = 128×128), horizontally
+centered, sitting above the button block (bottom edge ≈ 8 px above the first button). Verify the
+blit overload in each target version with `javap`; when in doubt use the overload whose region size
+and texture size are all equal so no scaling math is involved.
+
+### Phi HUD menu (replaces the bare editor)
+
+A launcher-style mod menu (think Lunar/Feather), opened by **H** or the **Phi HUD** buttons:
+
+- **Left panel** (≈140 px): the list of widgets ("mods"), one row each: name + an ON/OFF switch drawn
+  as a small pill (green when on, grey when off). Clicking the row selects it, clicking the switch
+  toggles it. A search box sits above the list. A "Settings" row at the bottom opens the global
+  settings (scale, color, background + opacity, shadow, margin, master toggle).
+- **Right area**: the live game view with every enabled widget drawn where it will actually be; the
+  selected widget is outlined and can be dragged (snapping as in v2). Dragging is the only way to
+  place widgets; the corner/anchor stays the fallback for widgets never dragged.
+- **Per-widget settings**, shown under the list when a widget is selected: its own `scale`
+  (0.5–3, default = inherit global), `color` (hex, default = inherit), `background` (inherit / on /
+  off). These are optional keys `scale`, `color`, `background` inside the widget object; absent =
+  inherit the global value.
+- **Bottom bar**: Reset layout · Done. Escape saves and closes.
+- The whole menu is drawn with the vanilla widget style (`Button`, `EditBox`, `AbstractSelectionList`
+  on Fabric; hand-drawn equivalents on 1.8.9), dark translucent panel background.
+
+Config additions (still `"version": 2`, all optional, inherit when absent):
+
+```json
+"fps": { "enabled": true, "anchor": "top-left", "order": 0, "x": 0.02, "y": 0.05,
+         "scale": 1.5, "color": "#55FF55", "background": false }
+```

@@ -106,44 +106,53 @@ public final class HudRenderer {
 		return String.format(Locale.ROOT, "Mem: %d / %d MB (%d%%)", used, max, max == 0 ? 0 : used * 100 / max);
 	}
 
-	// ---- layout ----
+	// ---- layout (screen pixels; each widget is drawn at its own scale) ----
 
-	/** A widget placed at scaled-screen coordinates (content box, background adds PAD around it). */
-	record Placed(String id, Widget widget, int x, int y, int w, int h) {
+	/** A widget placed in screen pixels: content box {@code x,y,w,h} (already multiplied by its scale {@code s}). */
+	record Placed(String id, Widget widget, int x, int y, int w, int h, float s) {
+		int pad() { return Math.round(PAD * s); }
 		boolean contains(double px, double py) {
-			return px >= x - PAD && px < x + w + PAD && py >= y - PAD && py < y + h + PAD;
+			return px >= x - pad() && px < x + w + pad() && py >= y - pad() && py < y + h + pad();
 		}
 	}
 
 	/** Widgets sharing one background box: an anchor stack, or a single free-positioned widget. */
-	record Group(List<Placed> items, int x, int y, int w, int h) {}
+	record Group(List<Placed> items, int x, int y, int w, int h, int pad, boolean background) {}
 
-	static float scale(HudConfig cfg) { return (float) Math.max(0.25, Math.min(4.0, cfg.scale)); }
+	static float scale(HudConfig cfg) { return HudConfig.clampScale(cfg.scale); }
 
 	/** Content width in the editor: disabled text widgets carry the "(off)" suffix. */
 	static int width(Widget wd, Font font, boolean off) {
 		return wd.width(font) + (off && wd instanceof Text ? font.width(OFF) : 0);
 	}
 
+	private static Placed measure(HudConfig cfg, Font font, String id) {
+		HudConfig.Widget c = cfg.widgets.get(id);
+		Widget wd = WIDGETS.get(id);
+		float s = cfg.scale(c);
+		return new Placed(id, wd, 0, 0, Math.round(width(wd, font, !c.enabled) * s), Math.round(wd.height(font) * s), s);
+	}
+
 	/**
-	 * @param w,h    scaled screen size
-	 * @param editor include disabled widgets (drawn with the "(off)" suffix) so they can be dragged
+	 * @param w,h    screen size in pixels
+	 * @param alsoId a disabled widget to include anyway (the one selected in the menu), or null
 	 */
-	static List<Group> layout(HudConfig cfg, Font font, int w, int h, boolean editor) {
+	static List<Group> layout(HudConfig cfg, Font font, int w, int h, String alsoId) {
 		List<Group> groups = new ArrayList<>();
 		Map<String, List<String>> stacks = new java.util.LinkedHashMap<>();
+		float gs = scale(cfg);
+		int margin = Math.round(cfg.margin * gs), gpad = Math.round(PAD * gs);
 		for (Map.Entry<String, HudConfig.Widget> e : cfg.widgets.entrySet()) {
 			HudConfig.Widget c = e.getValue();
-			Widget wd = WIDGETS.get(e.getKey());
-			if (wd == null || !(c.enabled || editor)) continue;
+			if (!WIDGETS.containsKey(e.getKey()) || !(c.enabled || e.getKey().equals(alsoId))) continue;
 			if (!c.free()) {
 				stacks.computeIfAbsent(c.anchor, k -> new ArrayList<>()).add(e.getKey());
 				continue;
 			}
-			int ww = width(wd, font, !c.enabled), hh = wd.height(font);
+			Placed m = measure(cfg, font, e.getKey());
 			int px = (int) Math.round(c.x * w), py = (int) Math.round(c.y * h);
-			Placed p = new Placed(e.getKey(), wd, c.x < 0.5 ? px : px - ww, c.y < 0.5 ? py : py - hh, ww, hh);
-			groups.add(new Group(List.of(p), p.x, p.y, ww, hh));
+			Placed p = new Placed(m.id, m.widget, c.x < 0.5 ? px : px - m.w, c.y < 0.5 ? py : py - m.h, m.w, m.h, m.s);
+			groups.add(new Group(List.of(p), p.x, p.y, p.w, p.h, p.pad(), cfg.background(c)));
 		}
 		for (String anchor : new String[]{"top-left", "top-right", "bottom-left", "bottom-right"}) {
 			List<String> ids = stacks.getOrDefault(anchor, List.of());
@@ -152,43 +161,50 @@ public final class HudRenderer {
 			boolean right = anchor.endsWith("right"), bottom = anchor.startsWith("bottom");
 			if (bottom) Collections.reverse(ids); // bottom anchors stack upward: order 0 sits at the edge
 
+			List<Placed> sizes = new ArrayList<>();
 			int gw = 0, gh = -GAP;
+			boolean bg = false;
 			for (String id : ids) {
-				gw = Math.max(gw, width(WIDGETS.get(id), font, !cfg.widgets.get(id).enabled));
-				gh += WIDGETS.get(id).height(font) + GAP;
+				Placed m = measure(cfg, font, id);
+				sizes.add(m);
+				gw = Math.max(gw, m.w);
+				gh += m.h + GAP;
+				bg |= cfg.background(cfg.widgets.get(id)); // ponytail: one box per stack; any member with background on draws it
 			}
-			int x = right ? w - cfg.margin - PAD - gw : cfg.margin + PAD;
-			int y = bottom ? h - cfg.margin - PAD - gh : cfg.margin + PAD;
+			int x = right ? w - margin - gpad - gw : margin + gpad;
+			int y = bottom ? h - margin - gpad - gh : margin + gpad;
 			List<Placed> items = new ArrayList<>();
-			for (String id : ids) {
-				Widget wd = WIDGETS.get(id);
-				int ww = width(wd, font, !cfg.widgets.get(id).enabled);
-				items.add(new Placed(id, wd, right ? x + gw - ww : x, y, ww, wd.height(font)));
-				y += wd.height(font) + GAP;
+			for (Placed m : sizes) {
+				items.add(new Placed(m.id, m.widget, right ? x + gw - m.w : x, y, m.w, m.h, m.s));
+				y += m.h + GAP;
 			}
-			groups.add(new Group(items, x, items.get(0).y, gw, gh));
+			groups.add(new Group(items, x, items.get(0).y, gw, gh, gpad, bg));
 		}
 		return groups;
 	}
 
+	static void drawGroupBackground(Draw g, Group grp, HudConfig cfg) {
+		if (grp.background) g.fill(grp.x - grp.pad, grp.y - grp.pad, grp.x + grp.w + grp.pad, grp.y + grp.h + grp.pad, cfg.backgroundArgb());
+	}
+
 	static void drawWidget(Draw g, Font font, Placed p, HudConfig cfg, boolean off) {
-		int argb = off ? (cfg.argb() & 0xFFFFFF) | 0x66000000 : cfg.argb();
-		p.widget.draw(g, font, p.x, p.y, cfg, argb, off ? OFF : "");
+		int argb = cfg.argb(cfg.widgets.get(p.id));
+		if (off) argb = (argb & 0xFFFFFF) | 0x66000000;
+		g.pose().pushMatrix();
+		g.pose().translate(p.x, p.y);
+		g.pose().scale(p.s, p.s);
+		p.widget.draw(g, font, 0, 0, cfg, argb, off ? OFF : "");
+		g.pose().popMatrix();
 	}
 
 	public static void render(Draw g) {
 		Minecraft mc = mc();
 		HudConfig cfg = HudConfig.get();
 		if (!cfg.enabled || mc.player == null || mc.level == null || Compat.hudHidden(mc)) return;
-
-		float scale = scale(cfg);
 		Font font = mc.font;
-		g.pose().pushMatrix();
-		g.pose().scale(scale, scale);
-		for (Group grp : layout(cfg, font, (int) (g.width() / scale), (int) (g.height() / scale), false)) {
-			if (cfg.background) g.fill(grp.x - PAD, grp.y - PAD, grp.x + grp.w + PAD, grp.y + grp.h + PAD, cfg.backgroundArgb());
+		for (Group grp : layout(cfg, font, g.width(), g.height(), null)) {
+			drawGroupBackground(g, grp, cfg);
 			for (Placed p : grp.items) drawWidget(g, font, p, cfg, false);
 		}
-		g.pose().popMatrix();
 	}
 }
