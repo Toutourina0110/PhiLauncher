@@ -216,3 +216,31 @@ every other button. Both are now:
 
 `Compat.wrapAny(Object)` casts the mixin's `@Coerce`d graphics to the version's type and reuses
 `wrap`, so the lockup layout lives in `PhiHud.drawLogo` only.
+
+## v6 — Blocky menu and a readable UI font (Fabric)
+
+The menu was a plain left panel with a vanilla list; it is now the launcher's "Blocky" look
+(design C of the three that were proposed).
+
+- **Tabs** along the top, inventory style: **Modules**, **Layout**, **Global**, **Presets**. The
+  active tab grows 4 px into the panel and carries an accent square.
+- **Modules**: a left column (search field + module list: status square, name, ON/OFF pill), a
+  centre column with the live preview (drag to move, snaps to edges and centre within 4 px), and a
+  right column for the selected module — `Module: ON/OFF`, text colour, `Scale`,
+  `Background: Inherit/On/Off`, X/Y as fractions of the screen, and `Reset this module`.
+- **Layout**: the preview alone, full width.
+- **Global**: overlay, text shadow, background, text colour, scale, background opacity, margin.
+- **Presets**: Minimal / Performance / PvP / Explorer / Everything / Nothing. A preset only switches
+  modules on and off — positions, scales and colours are kept.
+- **Bottom bar**: `Overlay: ON/OFF`, `Reset layout`, `Done`.
+
+Everything except the text fields and the module list is drawn and hit-tested inside
+`HudMenuScreen` (a per-frame list of `Button` / `Slider` rectangles built by `buildControls`, used
+both to draw and to handle clicks). Nothing depends on a version-specific widget render hook, so
+`Compat.newEditor` still only supplies the list and row subclasses.
+
+**Font**: the menu no longer uses the vanilla pixel font. `assets/phihud/font/ui.json` registers a
+TrueType provider for the id `phihud:ui` over a bundled OFL-licensed Noto Sans (`ui.ttf`, licence in
+`OFL.txt`), and `Ui.text(String)` styles a `Component` with it — `Draw` gained a `Component`
+overload of `text` for that. The in-game HUD keeps the vanilla font: it has to read over the world,
+where the pixel font sits better.

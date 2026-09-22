@@ -10,6 +10,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.network.chat.Component;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
@@ -34,6 +35,7 @@ final class Compat {
 			public Matrix3x2fStack pose() { return g.pose(); }
 			public void fill(int x1, int y1, int x2, int y2, int argb) { g.fill(x1, y1, x2, y2, argb); }
 			public void text(Font f, String s, int x, int y, int argb, boolean shadow) { g.drawString(f, s, x, y, argb, shadow); }
+			public void text(Font f, Component c, int x, int y, int argb, boolean shadow) { g.drawString(f, c, x, y, argb, shadow); }
 			public void item(ItemStack stack, int x, int y) { g.renderItem(stack, x, y); }
 			public void itemDecorations(Font f, ItemStack stack, int x, int y) { g.renderItemDecorations(f, stack, x, y); }
 		};
