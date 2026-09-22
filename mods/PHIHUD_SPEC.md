@@ -196,3 +196,23 @@ All disabled by default. `keystrokes` and `effects` are non-text widgets (draw t
   changed).
 - No per-frame allocations in the hot path beyond the strings above (no streams, no lambdas
   capturing, no new lists).
+
+## v5 — title-screen lockup and button size (Fabric)
+
+The bare 128 px Φ glyph read as an oversized raw glyph, and the **Phi HUD** button was wider than
+every other button. Both are now:
+
+- **Title-screen lockup**: the Φ mark is drawn at **64×64** (`phi_logo.png` stays 128×128, the blit
+  scales it: the 13-arg `blit(pipeline, id, x, y, u, v, destW, destH, regionW, regionH, texW, texH,
+  color)` takes the *destination* size in args 7/8 and the *source region* in args 9/10 — verified in
+  `GuiGraphics` / `GuiGraphicsExtractor` for 1.21.11, 26.1 and 26.3, so it scales, it does not crop).
+  Underneath, centred and letter-spaced (+2 px/glyph, drawn per glyph), the wordmark
+  **"PHI LAUNCHER"** in `0xFFB388FF` with a shadow, 6 px below the mark. The whole lockup
+  (64 + 6 + 9 = 79 px) sits with its bottom 8 px above the first button; on short screens the mark
+  shrinks, and below 16 px the vanilla logo is left alone.
+- **Phi HUD button**: one half-row (the "Options" button's width, 98 px in vanilla), height 20,
+  horizontally centred under the button block, on both the title screen and the pause menu. The
+  pause menu still pushes the rows below it down by 24 px.
+
+`Compat.wrapAny(Object)` casts the mixin's `@Coerce`d graphics to the version's type and reuses
+`wrap`, so the lockup layout lives in `PhiHud.drawLogo` only.

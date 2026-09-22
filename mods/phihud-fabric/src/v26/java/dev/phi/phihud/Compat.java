@@ -39,6 +39,9 @@ final class Compat {
 		};
 	}
 
+	/** Same wrapper for the @Coerce'd Object the logo mixin hands over. */
+	static Draw wrapAny(Object g) { return wrap((GuiGraphicsExtractor) g); }
+
 	static void registerHud(Consumer<Draw> renderer) {
 		HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("phihud", "hud"), (g, tick) -> renderer.accept(wrap(g)));
 	}
@@ -60,7 +63,7 @@ final class Compat {
 		ScreenEvents.afterExtract(screen).register((s, g, mx, my, tick) -> draw.accept(wrap(g)));
 	}
 
-	/** Phi logo: 128x128 texture drawn 1:1 (region == texture size; {@code size} < 128 only shrinks it on tiny screens). */
+	/** Phi logo: the whole 128x128 texture (source region 128x128) scaled into a {@code size} x {@code size} box. */
 	static void drawLogo(Object graphics, int x, int y, int size, float alpha) {
 		((GuiGraphicsExtractor) graphics).blit(RenderPipelines.GUI_TEXTURED, LOGO, x, y, 0f, 0f, size, size, 128, 128, 128, 128, ARGB.white(alpha));
 	}
