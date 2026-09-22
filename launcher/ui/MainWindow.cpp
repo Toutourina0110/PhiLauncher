@@ -199,6 +199,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         helpMenuButton->setPopupMode(QToolButton::InstantPopup);
 
         auto accountMenuButton = dynamic_cast<QToolButton*>(ui->mainToolBar->widgetForAction(ui->actionAccountsButton));
+        accountMenuButton->setObjectName(QStringLiteral("accountButton"));
         accountMenuButton->setPopupMode(QToolButton::InstantPopup);
 
         auto exportInstanceMenu = new QMenu(this);
@@ -415,6 +416,23 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
     m_statusCenter = new QLabel(tr("Total playtime: 0s"), this);
     statusBar()->addPermanentWidget(m_statusLeft, 1);
     statusBar()->addPermanentWidget(m_statusCenter, 0);
+
+    // Phi mark + wordmark at the far left of the header
+    {
+        auto brand = new QWidget(this);
+        brand->setObjectName(QStringLiteral("phiBrand"));
+        auto brandLayout = new QHBoxLayout(brand);
+        brandLayout->setContentsMargins(8, 0, 12, 0);
+        brandLayout->setSpacing(7);
+        auto mark = new QLabel(brand);
+        mark->setPixmap(APPLICATION->logo().pixmap(22, 22));
+        auto word = new QLabel(QStringLiteral("PHI"), brand);
+        word->setObjectName(QStringLiteral("phiBrandText"));
+        word->setProperty("phiFont", "header");
+        brandLayout->addWidget(mark);
+        brandLayout->addWidget(word);
+        ui->mainToolBar->insertWidget(ui->actionAddInstance, brand);
+    }
 
     // Add "manage accounts" button, right align
     QWidget* spacer = new QWidget();

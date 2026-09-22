@@ -81,6 +81,48 @@ QToolBar {
     spacing: 4px;
     padding: 4px;
 }
+/* the main window header: flat items on a dark band, accent underline on hover/active */
+#mainToolBar {
+    background: palette(base);
+    border: 0;
+    border-bottom: 2px solid palette(highlight);
+    spacing: 0px;
+    padding: 3px 6px;
+}
+#mainToolBar QToolButton {
+    background: transparent;
+    color: palette(window-text);
+    border: 0;
+    border-bottom: 2px solid transparent;
+    padding: 5px 10px;
+    margin: 0px 1px;
+}
+#mainToolBar QToolButton:hover {
+    background: palette(alternate-base);
+    border-bottom-color: palette(link);
+    color: palette(link);
+}
+#mainToolBar QToolButton:pressed, #mainToolBar QToolButton:checked {
+    background: palette(window);
+    border-bottom-color: palette(highlight);
+    color: palette(link);
+}
+#mainToolBar QToolButton#accountButton {
+    background: palette(window);
+    border: 2px solid palette(dark);
+    padding: 3px 8px;
+    margin-left: 6px;
+}
+#mainToolBar QToolButton#accountButton:hover {
+    border-color: palette(link);
+}
+#phiBrand {
+    border-right: 2px solid palette(dark);
+}
+#phiBrandText {
+    color: palette(link);
+}
+
 QToolBar::separator {
     width: 2px;
     background: palette(dark);

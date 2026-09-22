@@ -185,16 +185,23 @@ void ThemeManager::initializeWidgets()
     themeDebugLog() << "<> Widget themes initialized.";
 }
 
-/// Copies a theme shipped in resources into the user's themes folder (once), so its colors stay editable.
+/// Copies a theme shipped in resources into the user's themes folder: theme.json once (colors stay editable),
+/// the stylesheet on every start so shipped shape/layout updates reach existing installs.
 void ThemeManager::seedBundledTheme(const QString& id)
 {
     QDir target(m_applicationThemeFolder.filePath(id));
-    if (target.exists())
-        return;
     QDirIterator it(":/themes/" + id, QDir::Files, QDirIterator::Subdirectories);
     while (it.hasNext()) {
         QString src = it.next();
-        QString dst = target.filePath(QDir(":/themes/" + id).relativeFilePath(src));
+        QString rel = QDir(":/themes/" + id).relativeFilePath(src);
+        QString dst = target.filePath(rel);
+        if (QFile::exists(dst)) {
+            // theme.json carries the user's colors and font, so it is only ever written once;
+            // the stylesheet and readme only describe shapes, so they follow the shipped version.
+            if (rel == "theme.json")
+                continue;
+            QFile::remove(dst);
+        }
         QDir().mkpath(QFileInfo(dst).path());
         if (!QFile::copy(src, dst)) {
             themeWarningLog() << "Failed to seed theme file" << dst;
