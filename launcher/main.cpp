@@ -71,6 +71,7 @@ int main(int argc, char* argv[])
 
             Q_INIT_RESOURCE(shaders);
             Q_INIT_RESOURCE(themes);
+            Q_INIT_RESOURCE(phi);
             return app.exec();
         }
         case Application::Failed:

@@ -115,6 +115,7 @@
 #include "ui/themes/ThemeManager.h"
 #include "ui/widgets/ActivityPanel.h"
 #include "ui/widgets/LabeledToolButton.h"
+#include "ui/widgets/PhiHeader.h"
 #include "ui/widgets/ResumePanel.h"
 
 #include "minecraft/PackProfile.h"
@@ -186,20 +187,32 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         ui->instanceToolBar->insertSeparator(ui->actionLaunchInstance);
     }
 
+    // the Phi header replaces the inherited tool bar: its own widget, its own pixel icons
+    {
+        m_header = new PhiHeader(ui->centralWidget);
+        m_header->addEntry(ui->actionAddInstance, "add");
+        m_header->addEntry(ui->actionFoldersButton, "folders");
+        m_header->addEntry(ui->actionStats, "stats");
+        m_header->addEntry(ui->actionSettings, "settings");
+        m_header->addEntry(ui->actionHelpButton, "help");
+        m_header->addEntry(ui->actionCheckUpdate, "update");
+        m_header->addTrailingEntry(ui->actionAccountsButton, QString());
+        ui->centralLayout->insertWidget(0, m_header);
+    }
+
     // set the menu for the folders help, accounts, and export tool buttons
     {
-        auto foldersMenuButton = dynamic_cast<QToolButton*>(ui->mainToolBar->widgetForAction(ui->actionFoldersButton));
+        auto foldersMenuButton = m_header->buttonFor(ui->actionFoldersButton);
         ui->actionFoldersButton->setMenu(ui->foldersMenu);
         foldersMenuButton->setPopupMode(QToolButton::InstantPopup);
 
-        helpMenuButton = dynamic_cast<QToolButton*>(ui->mainToolBar->widgetForAction(ui->actionHelpButton));
+        helpMenuButton = m_header->buttonFor(ui->actionHelpButton);
         ui->actionHelpButton->setMenu(new QMenu(this));
         ui->actionHelpButton->menu()->addActions(ui->helpMenu->actions());
         ui->actionHelpButton->menu()->removeAction(ui->actionCheckUpdate);
         helpMenuButton->setPopupMode(QToolButton::InstantPopup);
 
-        auto accountMenuButton = dynamic_cast<QToolButton*>(ui->mainToolBar->widgetForAction(ui->actionAccountsButton));
-        accountMenuButton->setObjectName(QStringLiteral("accountButton"));
+        auto accountMenuButton = m_header->buttonFor(ui->actionAccountsButton);
         accountMenuButton->setPopupMode(QToolButton::InstantPopup);
 
         auto exportInstanceMenu = new QMenu(this);
@@ -230,7 +243,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         // this is only needed on gamescope because it defaults to an X11/XWayland session and
         // does not implement decorations
         if (qgetenv("XDG_CURRENT_DESKTOP") == "gamescope") {
-            ui->mainToolBar->addAction(ui->actionCloseWindow);
+            m_header->addEntry(ui->actionCloseWindow, "close");
         }
 
         ui->actionViewJavaFolder->setEnabled(BuildConfig.JAVA_DOWNLOADER_ENABLED);
@@ -417,28 +430,6 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
     statusBar()->addPermanentWidget(m_statusLeft, 1);
     statusBar()->addPermanentWidget(m_statusCenter, 0);
 
-    // Phi mark + wordmark at the far left of the header
-    {
-        auto brand = new QWidget(this);
-        brand->setObjectName(QStringLiteral("phiBrand"));
-        auto brandLayout = new QHBoxLayout(brand);
-        brandLayout->setContentsMargins(8, 0, 12, 0);
-        brandLayout->setSpacing(7);
-        auto mark = new QLabel(brand);
-        mark->setPixmap(APPLICATION->logo().pixmap(22, 22));
-        auto word = new QLabel(QStringLiteral("PHI"), brand);
-        word->setObjectName(QStringLiteral("phiBrandText"));
-        word->setProperty("phiFont", "header");
-        brandLayout->addWidget(mark);
-        brandLayout->addWidget(word);
-        ui->mainToolBar->insertWidget(ui->actionAddInstance, brand);
-    }
-
-    // Add "manage accounts" button, right align
-    QWidget* spacer = new QWidget();
-    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    ui->mainToolBar->insertWidget(ui->actionAccountsButton, spacer);
-
     // Use undocumented property... https://stackoverflow.com/questions/7121718/create-a-scrollbar-in-a-submenu-qt
     ui->accountsMenu->setStyleSheet("QMenu { menu-scrollable: 1; }");
 
@@ -541,7 +532,6 @@ MainWindow::~MainWindow() {}
 QMenu* MainWindow::createPopupMenu()
 {
     QMenu* filteredMenu = QMainWindow::createPopupMenu();
-    filteredMenu->removeAction(ui->mainToolBar->toggleViewAction());
 
     filteredMenu->addAction(ui->actionToggleStatusBar);
     filteredMenu->addAction(ui->actionLockToolbars);
@@ -555,7 +545,6 @@ void MainWindow::setStatusBarVisibility(bool state)
 }
 void MainWindow::lockToolbars(bool state)
 {
-    ui->mainToolBar->setMovable(!state);
     ui->instanceToolBar->setMovable(!state);
     ui->newsToolBar->setMovable(!state);
     APPLICATION->settings()->set("ToolbarsLocked", state);
@@ -567,15 +556,15 @@ void MainWindow::konamiTriggered()
         " stop:0 rgba(125, 0, 0, 255), stop:0.166 rgba(125, 125, 0, 255), stop:0.333 rgba(0, 125, 0, 255), stop:0.5 rgba(0, 125, 125, "
         "255), stop:0.666 rgba(0, 0, 125, 255), stop:0.833 rgba(125, 0, 125, 255), stop:1 rgba(125, 0, 0, 255));";
     QString stylesheet = "background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0," + gradient;
-    if (ui->mainToolBar->styleSheet() == stylesheet) {
-        ui->mainToolBar->setStyleSheet("");
+    if (m_header->styleSheet() == stylesheet) {
+        m_header->setStyleSheet("");
         ui->instanceToolBar->setStyleSheet("");
         ui->centralWidget->setStyleSheet("");
         ui->newsToolBar->setStyleSheet("");
         ui->statusBar->setStyleSheet("");
         qDebug() << "Super Secret Mode DEACTIVATED!";
     } else {
-        ui->mainToolBar->setStyleSheet(stylesheet);
+        m_header->setStyleSheet(stylesheet);
         ui->instanceToolBar->setStyleSheet("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1," + gradient);
         ui->centralWidget->setStyleSheet("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1," + gradient);
         ui->newsToolBar->setStyleSheet(stylesheet);
@@ -650,7 +639,7 @@ void MainWindow::showInstanceContextMenu(const QPoint& pos)
 void MainWindow::updateMainToolBar()
 {
     ui->menuBar->setVisible(APPLICATION->settings()->get("MenuBarInsteadOfToolBar").toBool());
-    ui->mainToolBar->setVisible(ui->menuBar->isNativeMenuBar() || !APPLICATION->settings()->get("MenuBarInsteadOfToolBar").toBool());
+    m_header->setVisible(ui->menuBar->isNativeMenuBar() || !APPLICATION->settings()->get("MenuBarInsteadOfToolBar").toBool());
 }
 
 void MainWindow::updateLaunchButton()

@@ -1108,6 +1108,8 @@ SET(LAUNCHER_SOURCES
     ui/widgets/CheckComboBox.h
     ui/widgets/StatsCharts.cpp
     ui/widgets/StatsCharts.h
+    ui/widgets/PhiHeader.h
+    ui/widgets/PhiHeader.cpp
     ui/widgets/ResumePanel.cpp
     ui/widgets/ResumePanel.h
     ui/widgets/ActivityPanel.cpp
@@ -1225,6 +1227,7 @@ qt_add_resources(LAUNCHER_RESOURCES
     resources/documents/documents.qrc
     resources/shaders/shaders.qrc
     resources/themes/themes.qrc
+    resources/phi/phi.qrc
     "${CMAKE_CURRENT_BINARY_DIR}/../${Launcher_Branding_LogoQRC}"
 )
 

@@ -1,0 +1,15 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/phi">
+        <file>icons/add.svg</file>
+        <file>icons/folders.svg</file>
+        <file>icons/stats.svg</file>
+        <file>icons/settings.svg</file>
+        <file>icons/help.svg</file>
+        <file>icons/update.svg</file>
+        <file>icons/account.svg</file>
+        <file>icons/launch.svg</file>
+        <file>icons/news.svg</file>
+        <file>icons/close.svg</file>
+    </qresource>
+</RCC>

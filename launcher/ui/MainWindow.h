@@ -61,6 +61,7 @@ class InstanceView;
 class KonamiCode;
 class InstanceTask;
 class LabeledToolButton;
+class PhiHeader;
 class ResumePanel;
 class ActivityPanel;
 
@@ -250,6 +251,7 @@ class MainWindow : public QMainWindow {
     LabeledToolButton* renameButton = nullptr;
     QToolButton* helpMenuButton = nullptr;
     KonamiCode* secretEventFilter = nullptr;
+    PhiHeader* m_header = nullptr;
     ResumePanel* m_resumePanel = nullptr;
     ActivityPanel* m_activityPanel = nullptr;
     bool m_instanceToolBarHidden = false;
