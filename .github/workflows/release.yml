@@ -74,7 +74,8 @@ jobs:
 
       - name: Build the installer
         working-directory: install
-        run: & "C:\Program Files (x86)\NSIS\makensis.exe" -NOCD "${{ github.workspace }}\build\program_info\win_install.nsi"
+        run: |
+          & "C:\Program Files (x86)\NSIS\makensis.exe" -NOCD "${{ github.workspace }}\build\program_info\win_install.nsi"
 
       # The updater picks an asset whose name contains the build artifact ("Windows-MSVC"), takes the
       # installer for an installed copy and the "Portable" archive for a portable one: keep both names.
