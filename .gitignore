@@ -63,3 +63,7 @@ flatbuild
 # Snap
 *.snap
 .claude/
+
+# local release artifacts
+build-release/
+*-Setup.exe

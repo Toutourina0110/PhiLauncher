@@ -1,112 +1,93 @@
-name: Build Application and Make Release
+name: Release
 
 on:
   push:
     tags:
-      - "*"
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to build, without the leading v (e.g. 1.0.1)
+        required: true
+        type: string
 
-permissions: {}
+permissions:
+  contents: write
 
 jobs:
-  build_release:
-    name: Build Release
-    uses: ./.github/workflows/build.yml
-    permissions:
-      contents: read
-      # Required for Azure Trusted Signing
-      id-token: write
-      # Required for vcpkg binary cache
-      packages: write
-    with:
-      build-type: Release
-      environment: Release
-    secrets: inherit
+  windows:
+    name: Windows (MSVC)
+    runs-on: windows-2022
 
-  create_release:
-    needs: build_release
-    permissions:
-      contents: write
-    runs-on: ubuntu-slim
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v4
         with:
-          submodules: "true"
-          path: "PrismLauncher-source"
-      - name: Download artifacts
-        uses: actions/download-artifact@v8
-      - name: Grab and store version
+          submodules: true
+          fetch-depth: 0
+
+      # The version lives in CMakeLists.txt as plain set() calls, so a release patches it from the tag.
+      # The updater compares the release tag with this number: they have to match.
+      - name: Work out the version
+        id: version
+        shell: bash
         run: |
-          tag_name=$(echo ${{ github.ref }} | grep -oE "[^/]+$")
-          echo "VERSION=$tag_name" >> $GITHUB_ENV
-      - name: Package artifacts properly
-        run: |
-          mv ${{ github.workspace }}/PrismLauncher-source PrismLauncher-${{ env.VERSION }}
-          mv PrismLauncher-Linux-Qt6-Portable*/PrismLauncher-portable.tar.gz PrismLauncher-Linux-Qt6-Portable-${{ env.VERSION }}.tar.gz
-          mv PrismLauncher-Linux-aarch64-Qt6-Portable*/PrismLauncher-portable.tar.gz PrismLauncher-Linux-aarch64-Qt6-Portable-${{ env.VERSION }}.tar.gz
-          mv PrismLauncher-*.AppImage/PrismLauncher-*-x86_64.AppImage PrismLauncher-Linux-x86_64.AppImage
-          mv PrismLauncher-*.AppImage.zsync/PrismLauncher-*-x86_64.AppImage.zsync PrismLauncher-Linux-x86_64.AppImage.zsync
-          mv PrismLauncher-*.AppImage/PrismLauncher-*-aarch64.AppImage PrismLauncher-Linux-aarch64.AppImage
-          mv PrismLauncher-*.AppImage.zsync/PrismLauncher-*-aarch64.AppImage.zsync PrismLauncher-Linux-aarch64.AppImage.zsync
-          mv PrismLauncher-macOS*/PrismLauncher.zip PrismLauncher-macOS-${{ env.VERSION }}.zip
-          mv PrismLauncher-macOS*/PrismLauncher.dmg PrismLauncher-macOS-${{ env.VERSION }}.dmg
+          v="${{ inputs.version }}"
+          [ -n "$v" ] || v="${GITHUB_REF_NAME#v}"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          IFS=. read -r major minor patch <<< "$v"
+          sed -i -E \
+            -e "s/^set\(Launcher_VERSION_MAJOR .*/set(Launcher_VERSION_MAJOR ${major:-0})/" \
+            -e "s/^set\(Launcher_VERSION_MINOR .*/set(Launcher_VERSION_MINOR ${minor:-0})/" \
+            -e "s/^set\(Launcher_VERSION_PATCH .*/set(Launcher_VERSION_PATCH ${patch:-0})/" \
+            CMakeLists.txt
 
-          tar --exclude='.git' -czf PrismLauncher-${{ env.VERSION }}.tar.gz PrismLauncher-${{ env.VERSION }}
-
-          for d in PrismLauncher-Windows-MSVC*; do
-            cd "${d}" || continue
-            LEGACY="$(echo -n ${d} | grep -o Legacy || true)"
-            ARM64="$(echo -n ${d} | grep -o arm64 || true)"
-            INST="$(echo -n ${d} | grep -o Setup || true)"
-            PORT="$(echo -n ${d} | grep -o Portable || true)"
-            NAME="PrismLauncher-Windows-MSVC"
-            test -z "${LEGACY}" || NAME="${NAME}-Legacy"
-            test -z "${ARM64}" || NAME="${NAME}-arm64"
-            test -z "${PORT}" || NAME="${NAME}-Portable"
-            test -z "${INST}" || mv PrismLauncher-*.exe ../${NAME}-Setup-${{ env.VERSION }}.exe
-            test -n "${INST}" || zip -r -9 "../${NAME}-${{ env.VERSION }}.zip" *
-            cd ..
-          done
-
-          for d in PrismLauncher-Windows-MinGW-w64*; do
-            cd "${d}" || continue
-            INST="$(echo -n ${d} | grep -o Setup || true)"
-            PORT="$(echo -n ${d} | grep -o Portable || true)"
-            NAME="PrismLauncher-Windows-MinGW-w64"
-            test -z "${PORT}" || NAME="${NAME}-Portable"
-            test -z "${INST}" || mv PrismLauncher-*.exe ../${NAME}-Setup-${{ env.VERSION }}.exe
-            test -n "${INST}" || zip -r -9 "../${NAME}-${{ env.VERSION }}.zip" *
-            cd ..
-          done
-
-      - name: Create release
-        id: create_release
-        uses: softprops/action-gh-release@v3
+      - uses: actions/setup-java@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: ${{ github.ref }}
-          name: Prism Launcher ${{ env.VERSION }}
-          draft: true
-          prerelease: false
-          fail_on_unmatched_files: true
+          distribution: temurin
+          java-version: 17
+
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: 6.9.3
+          modules: qtnetworkauth
+          cache: true
+
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure
+        run: >
+          cmake --preset windows_msvc -B build
+          -DENABLE_LTO=OFF
+          -DBUILD_TESTING=OFF
+          -DLauncher_UPDATER_GITHUB_REPO=https://github.com/${{ github.repository }}
+          -DLauncher_BUILD_ARTIFACT=Windows-MSVC
+          -DLauncher_BUILD_PLATFORM=Windows
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Install
+        run: |
+          cmake --install build --config Release --prefix install
+          Copy-Item -Recurse install install-portable
+          cmake --install build --config Release --prefix install-portable --component portable
+
+      - name: Build the installer
+        working-directory: install
+        run: & "C:\Program Files (x86)\NSIS\makensis.exe" -NOCD "${{ github.workspace }}\build\program_info\win_install.nsi"
+
+      # The updater picks an asset whose name contains the build artifact ("Windows-MSVC"), takes the
+      # installer for an installed copy and the "Portable" archive for a portable one: keep both names.
+      - name: Name the assets
+        run: |
+          Move-Item PhiLauncher-Setup.exe "PhiLauncher-Windows-MSVC-Setup-${{ steps.version.outputs.version }}.exe"
+          Compress-Archive -Path install-portable\* -DestinationPath "PhiLauncher-Windows-MSVC-Portable-${{ steps.version.outputs.version }}.zip"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Phi Launcher ${{ steps.version.outputs.version }}
+          generate_release_notes: true
           files: |
-            PrismLauncher-Linux-x86_64.AppImage
-            PrismLauncher-Linux-x86_64.AppImage.zsync
-            PrismLauncher-Linux-aarch64.AppImage
-            PrismLauncher-Linux-aarch64.AppImage.zsync
-            PrismLauncher-Linux-Qt6-Portable-${{ env.VERSION }}.tar.gz
-            PrismLauncher-Linux-aarch64-Qt6-Portable-${{ env.VERSION }}.tar.gz
-            PrismLauncher-Windows-MinGW-w64-${{ env.VERSION }}.zip
-            PrismLauncher-Windows-MinGW-w64-Portable-${{ env.VERSION }}.zip
-            PrismLauncher-Windows-MinGW-w64-Setup-${{ env.VERSION }}.exe
-            PrismLauncher-Windows-MSVC-arm64-${{ env.VERSION }}.zip
-            PrismLauncher-Windows-MSVC-arm64-Portable-${{ env.VERSION }}.zip
-            PrismLauncher-Windows-MSVC-arm64-Setup-${{ env.VERSION }}.exe
-            PrismLauncher-Windows-MSVC-${{ env.VERSION }}.zip
-            PrismLauncher-Windows-MSVC-Portable-${{ env.VERSION }}.zip
-            PrismLauncher-Windows-MSVC-Setup-${{ env.VERSION }}.exe
-            PrismLauncher-macOS-${{ env.VERSION }}.zip
-            PrismLauncher-macOS-${{ env.VERSION }}.dmg
-            PrismLauncher-${{ env.VERSION }}.tar.gz
+            PhiLauncher-Windows-MSVC-Setup-*.exe
+            PhiLauncher-Windows-MSVC-Portable-*.zip
